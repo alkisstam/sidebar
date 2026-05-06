@@ -1,112 +1,143 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import Sidebar, { InstalledApp } from '@/modules/sidebar';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+export default function AppsScreen() {
+  const [apps, setApps] = useState<InstalledApp[]>([]);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-export default function TabTwoScreen() {
+  const load = useCallback(async () => {
+    const [appList, favs] = await Promise.all([
+      Sidebar.getInstalledApps(),
+      Sidebar.getFavorites(),
+    ]);
+    setApps(appList);
+    setFavorites(new Set(favs));
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = (pkg: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev);
+      next.has(pkg) ? next.delete(pkg) : next.add(pkg);
+      return next;
+    });
+  };
+
+  const save = async () => {
+    setSaving(true);
+    await Sidebar.saveFavorites([...favorites]);
+    setSaving(false);
+  };
+
+  const filtered = query
+    ? apps.filter(a => a.name.toLowerCase().includes(query.toLowerCase()))
+    : apps;
+
+  if (loading) {
+    return (
+      <View style={[s.root, s.center]}>
+        <ActivityIndicator color="#5050cc" size="large" />
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <View style={s.root}>
+      <View style={s.header}>
+        <Text style={s.title}>Favorites</Text>
+        <TouchableOpacity
+          style={[s.saveBtn, saving && s.saveBtnDim]}
+          onPress={save}
+          disabled={saving}
+        >
+          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
+        </TouchableOpacity>
+      </View>
+      <TextInput
+        style={s.search}
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search apps…"
+        placeholderTextColor="#555"
+      />
+      <FlatList
+        data={filtered}
+        keyExtractor={item => item.packageName}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={s.row} onPress={() => toggle(item.packageName)}>
+            <Image
+              source={{ uri: `data:image/png;base64,${item.icon}` }}
+              style={s.icon}
+            />
+            <Text style={s.appName} numberOfLines={1}>{item.name}</Text>
+            <View style={[s.check, favorites.has(item.packageName) && s.checkOn]}>
+              {favorites.has(item.packageName) && <Text style={s.tick}>✓</Text>}
+            </View>
+          </TouchableOpacity>
+        )}
+        ItemSeparatorComponent={() => <View style={s.sep} />}
+      />
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
-  titleContainer: {
+const ROOT = '#0c0c18';
+const CARD = '#16162a';
+const ACCENT = '#5050cc';
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: ROOT },
+  center: { justifyContent: 'center', alignItems: 'center' },
+  header: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 64,
+    paddingBottom: 16,
   },
+  title: { fontSize: 28, fontWeight: '700', color: '#fff' },
+  saveBtn: { backgroundColor: ACCENT, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
+  saveBtnDim: { opacity: 0.6 },
+  saveBtnText: { color: '#fff', fontWeight: '600' },
+  search: {
+    backgroundColor: CARD,
+    color: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  icon: { width: 44, height: 44, borderRadius: 10 },
+  appName: { flex: 1, color: '#fff', fontSize: 15, marginLeft: 14 },
+  check: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#444',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkOn: { backgroundColor: ACCENT, borderColor: ACCENT },
+  tick: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  sep: { height: 1, backgroundColor: CARD, marginLeft: 74 },
 });
