@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   useColorScheme,
   View,
 } from "react-native";
@@ -16,7 +15,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Sidebar, { PillSettings } from "../modules/sidebar";
 
-const DEFAULT_PILL: PillSettings = { height: 80, width: 36, position: 0.5, side: "left" };
+const DEFAULT_PILL: PillSettings = {
+  height: 80,
+  width: 36,
+  position: 0.5,
+  side: "left",
+  opacity: 1.0,
+  theme: "dark",
+};
 
 export default function Index() {
   const scheme = useColorScheme();
@@ -26,8 +32,6 @@ export default function Index() {
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [serviceEnabled, setServiceEnabled] = useState(false);
   const [pill, setPill] = useState<PillSettings>(DEFAULT_PILL);
-  const [heightText, setHeightText] = useState(String(DEFAULT_PILL.height));
-  const [widthText, setWidthText] = useState(String(DEFAULT_PILL.width));
   const [saving, setSaving] = useState(false);
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
@@ -41,8 +45,6 @@ export default function Index() {
       setPermissionGranted(perm);
       setServiceEnabled(svc);
       setPill(pillSettings);
-      setHeightText(String(pillSettings.height));
-      setWidthText(String(pillSettings.width));
     });
 
     const sub = AppState.addEventListener("change", (next) => {
@@ -64,16 +66,8 @@ export default function Index() {
   }
 
   async function saveHandle() {
-    const h = parseInt(heightText, 10);
-    const w = parseInt(widthText, 10);
-    const next: PillSettings = {
-      ...pill,
-      height: isNaN(h) ? pill.height : h,
-      width: isNaN(w) ? pill.width : w,
-    };
     setSaving(true);
-    await Sidebar.savePillSettings(next);
-    setPill(next);
+    await Sidebar.savePillSettings(pill);
     setSaving(false);
   }
 
@@ -130,60 +124,70 @@ export default function Index() {
         <View style={s.separator} />
 
         <View style={s.settingRow}>
-          <Text style={s.settingLabel}>Position</Text>
-          <View style={s.sliderWrap}>
-            <Text style={s.sliderEdge}>Top</Text>
-            <Slider
-              style={{ flex: 1 }}
-              minimumValue={0}
-              maximumValue={1}
-              step={0.01}
-              value={pill.position}
-              onValueChange={(v) => setPill((p) => ({ ...p, position: v }))}
-              minimumTrackTintColor={colors.tint}
-              maximumTrackTintColor={colors.separator}
-              thumbTintColor={colors.tint}
-            />
-            <Text style={s.sliderEdge}>Bot</Text>
-            <Text style={[s.sliderEdge, { width: 36, textAlign: "right" }]}>
-              {pill.position.toFixed(2)}
-            </Text>
+          <Text style={s.settingLabel}>Theme</Text>
+          <View style={s.segmented}>
+            {(["dark", "light"] as const).map((t) => (
+              <Pressable
+                key={t}
+                style={[s.segBtn, pill.theme === t && s.segBtnActive]}
+                onPress={() => setPill((p) => ({ ...p, theme: t }))}
+              >
+                <Text style={[s.segBtnText, pill.theme === t && s.segBtnTextActive]}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
         <View style={s.separator} />
 
-        <View style={s.settingRow}>
-          <Text style={s.settingLabel}>Height</Text>
-          <View style={s.inputWrap}>
-            <TextInput
-              style={s.input}
-              keyboardType="numeric"
-              value={heightText}
-              onChangeText={setHeightText}
-              selectTextOnFocus
-              placeholderTextColor={colors.subtext}
-            />
-            <Text style={s.inputUnit}>dp</Text>
-          </View>
-        </View>
+        <SliderRow
+          label="Position"
+          min={0} max={1} step={0.01}
+          value={pill.position}
+          display={pill.position.toFixed(2)}
+          leftEdge="Top" rightEdge="Bot"
+          onChange={(v) => setPill((p) => ({ ...p, position: v }))}
+          colors={colors}
+          s={s}
+        />
 
         <View style={s.separator} />
 
-        <View style={s.settingRow}>
-          <Text style={s.settingLabel}>Width</Text>
-          <View style={s.inputWrap}>
-            <TextInput
-              style={s.input}
-              keyboardType="numeric"
-              value={widthText}
-              onChangeText={setWidthText}
-              selectTextOnFocus
-              placeholderTextColor={colors.subtext}
-            />
-            <Text style={s.inputUnit}>dp</Text>
-          </View>
-        </View>
+        <SliderRow
+          label="Height"
+          min={40} max={200} step={1}
+          value={pill.height}
+          display={`${Math.round(pill.height)}`}
+          onChange={(v) => setPill((p) => ({ ...p, height: Math.round(v) }))}
+          colors={colors}
+          s={s}
+        />
+
+        <View style={s.separator} />
+
+        <SliderRow
+          label="Width"
+          min={6} max={40} step={1}
+          value={pill.width}
+          display={`${Math.round(pill.width)}`}
+          onChange={(v) => setPill((p) => ({ ...p, width: Math.round(v) }))}
+          colors={colors}
+          s={s}
+        />
+
+        <View style={s.separator} />
+
+        <SliderRow
+          label="Opacity"
+          min={0.1} max={1} step={0.05}
+          value={pill.opacity}
+          display={pill.opacity.toFixed(2)}
+          onChange={(v) => setPill((p) => ({ ...p, opacity: parseFloat(v.toFixed(2)) }))}
+          colors={colors}
+          s={s}
+        />
 
         <Pressable
           style={[s.saveBtn, saving && s.saveBtnDisabled]}
@@ -202,6 +206,38 @@ export default function Index() {
         </Pressable>
       </View>
     </ScrollView>
+  );
+}
+
+function SliderRow({
+  label, min, max, step, value, display, leftEdge, rightEdge, onChange, colors, s,
+}: {
+  label: string; min: number; max: number; step: number; value: number;
+  display: string; leftEdge?: string; rightEdge?: string;
+  onChange: (v: number) => void;
+  colors: ReturnType<typeof makeColors>;
+  s: ReturnType<typeof styles>;
+}) {
+  return (
+    <View style={s.settingRow}>
+      <Text style={s.settingLabel}>{label}</Text>
+      <View style={s.sliderWrap}>
+        {leftEdge && <Text style={s.sliderEdge}>{leftEdge}</Text>}
+        <Slider
+          style={{ flex: 1 }}
+          minimumValue={min}
+          maximumValue={max}
+          step={step}
+          value={value}
+          onValueChange={onChange}
+          minimumTrackTintColor={colors.tint}
+          maximumTrackTintColor={colors.separator}
+          thumbTintColor={colors.tint}
+        />
+        {rightEdge && <Text style={s.sliderEdge}>{rightEdge}</Text>}
+        <Text style={[s.sliderEdge, { width: 36, textAlign: "right" }]}>{display}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -267,20 +303,6 @@ function styles(colors: ReturnType<typeof makeColors>) {
     segBtnTextActive: { color: "#fff" },
     sliderWrap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
     sliderEdge: { fontSize: 12, color: colors.subtext },
-    inputWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
-    input: {
-      width: 72,
-      borderWidth: 1,
-      borderColor: colors.separator,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      fontSize: 15,
-      color: colors.text,
-      backgroundColor: colors.bg,
-      textAlign: "center",
-    },
-    inputUnit: { fontSize: 14, color: colors.subtext },
     saveBtn: {
       margin: 12,
       backgroundColor: colors.tint,

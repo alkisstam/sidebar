@@ -13,6 +13,8 @@ export interface PillSettings {
   width: number;
   position: number;
   side: 'left' | 'right';
+  opacity: number;
+  theme: 'light' | 'dark';
 }
 
 export default {

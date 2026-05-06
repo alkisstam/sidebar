@@ -9,6 +9,8 @@ import android.graphics.drawable.GradientDrawable
 import android.os.*
 import android.provider.Settings
 import android.view.*
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.widget.*
 import androidx.core.app.NotificationCompat
 import org.json.JSONArray
@@ -83,7 +85,14 @@ class SidebarOverlayService : Service() {
         else
             @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
 
-    data class PillPrefs(val height: Int, val width: Int, val position: Float, val side: String)
+    data class PillPrefs(
+        val height: Int,
+        val width: Int,
+        val position: Float,
+        val side: String,
+        val opacity: Float,
+        val theme: String
+    )
 
     private fun pillPrefs(): PillPrefs {
         val p = getSharedPreferences("sidebar_prefs", MODE_PRIVATE)
@@ -91,7 +100,9 @@ class SidebarOverlayService : Service() {
             p.getInt("pill_height", 80),
             p.getInt("pill_width", 36),
             p.getFloat("pill_position", 0.5f),
-            p.getString("pill_side", "right") ?: "right"
+            p.getString("pill_side", "right") ?: "right",
+            p.getFloat("pill_opacity", 1.0f),
+            p.getString("pill_theme", "dark") ?: "dark"
         )
     }
 
@@ -110,7 +121,7 @@ class SidebarOverlayService : Service() {
         ).apply {
             gravity = if (prefs.side == "left") Gravity.START or Gravity.TOP
                       else Gravity.END or Gravity.TOP
-            x = 0
+            x = dp(2)
             y = yPos
         }
     }
@@ -118,11 +129,43 @@ class SidebarOverlayService : Service() {
     private fun addHandle() {
         val prefs = pillPrefs()
         val handle = View(this).apply {
-            background = PullTabDrawable(prefs.side, highlighted = false)
-            setOnClickListener { toggle() }
+            background = PullTabDrawable(highlighted = false, prefs.theme)
+            alpha = prefs.opacity
         }
+        installSwipeListener(handle)
         wm.addView(handle, handleParams(prefs))
         handleView = handle
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            handle.post {
+                handle.systemGestureExclusionRects = listOf(
+                    android.graphics.Rect(0, 0, handle.width, handle.height)
+                )
+            }
+        }
+    }
+
+    private fun installSwipeListener(handle: View) {
+        var downX = 0f
+        var downY = 0f
+        handle.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
+                    if (Math.abs(dx) >= dp(16) && Math.abs(dx) > Math.abs(dy)) {
+                        toggle()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> true
+                else -> false
+            }
+        }
     }
 
     private fun toggle() {
@@ -135,8 +178,7 @@ class SidebarOverlayService : Service() {
         dragMode = true
         val handle = handleView ?: return
         val prefs = pillPrefs()
-        handle.background = PullTabDrawable(prefs.side, highlighted = true)
-        handle.setOnClickListener(null)
+        handle.background = PullTabDrawable(highlighted = true, prefs.theme)
         handle.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_MOVE -> {
@@ -165,18 +207,21 @@ class SidebarOverlayService : Service() {
     private fun exitDragMode() {
         dragMode = false
         val handle = handleView ?: return
-        handle.background = PullTabDrawable(pillPrefs().side, highlighted = false)
+        val prefs = pillPrefs()
+        handle.background = PullTabDrawable(highlighted = false, prefs.theme)
+        handle.alpha = prefs.opacity
         handle.setOnTouchListener(null)
-        handle.setOnClickListener { toggle() }
+        installSwipeListener(handle)
     }
 
     // ── Panel ─────────────────────────────────────────────────────────────────
 
     private fun showPanel() {
         if (shown) return
+        shown = true
         val pkgs = loadFavorites()
         val pm = packageManager
-        val (_, _, _, side) = pillPrefs()
+        val prefs = pillPrefs()
 
         val screenHeight = resources.displayMetrics.heightPixels
         val maxPanelHeight = (screenHeight * 0.72).toInt()
@@ -184,7 +229,6 @@ class SidebarOverlayService : Service() {
         val contentHeight = dp(34) + dp(8) + rows * dp(82) + dp(16)
         val panelHeight = contentHeight.coerceAtMost(maxPanelHeight)
 
-        // Dismiss overlay — full screen, behind the panel
         val overlay = View(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
             setOnClickListener { hidePanel() }
@@ -198,11 +242,14 @@ class SidebarOverlayService : Service() {
         ))
         dismissOverlay = overlay
 
-        // Panel card
+        val light = prefs.theme == "light"
+        val panelBg = if (light) Color.argb(245, 240, 240, 245) else Color.argb(245, 18, 18, 32)
+        val indicatorColor = if (light) Color.argb(60, 0, 0, 0) else Color.argb(80, 255, 255, 255)
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
-                setColor(Color.argb(245, 18, 18, 32))
+                setColor(panelBg)
                 cornerRadius = dp(22).toFloat()
             }
             elevation = dp(8).toFloat()
@@ -210,10 +257,9 @@ class SidebarOverlayService : Service() {
             outlineProvider = ViewOutlineProvider.BACKGROUND
         }
 
-        // Drag indicator — long press to enter position-drag mode
         val dragIndicator = View(this).apply {
             background = GradientDrawable().apply {
-                setColor(Color.argb(80, 255, 255, 255))
+                setColor(indicatorColor)
                 cornerRadius = dp(2).toFloat()
             }
             isLongClickable = true
@@ -224,23 +270,25 @@ class SidebarOverlayService : Service() {
             layoutParams = lp
             setOnLongClickListener {
                 hidePanel()
-                Handler(Looper.getMainLooper()).postDelayed({ enterDragMode() }, 120)
+                Handler(Looper.getMainLooper()).postDelayed({ enterDragMode() }, 300)
                 true
             }
         }
         root.addView(dragIndicator)
 
-        // App grid
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(8), dp(4), dp(8), dp(16))
         }
 
+        val labelColor = if (light) Color.argb(255, 30, 30, 30) else Color.WHITE
+        val emptyColor = if (light) Color.argb(160, 50, 50, 50) else Color.argb(160, 255, 255, 255)
+
         if (pkgs.isEmpty()) {
             container.addView(TextView(this).apply {
                 text = "No favorites yet.\nOpen the Sidebar app\nto choose your apps."
-                setTextColor(Color.argb(160, 255, 255, 255))
+                setTextColor(emptyColor)
                 textSize = 13f
                 gravity = Gravity.CENTER
                 setPadding(dp(16), dp(40), dp(16), dp(40))
@@ -262,7 +310,7 @@ class SidebarOverlayService : Service() {
                     val info = pm.getApplicationInfo(pkg, 0)
                     val name = pm.getApplicationLabel(info).toString()
                     val icon = pm.getApplicationIcon(pkg)
-                    row?.addView(makeAppCell(pkg, name, icon))
+                    row?.addView(makeAppCell(pkg, name, icon, labelColor))
                 } catch (_: Exception) {
                     row?.addView(View(this).apply {
                         layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
@@ -281,7 +329,7 @@ class SidebarOverlayService : Service() {
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
         ))
 
-        val panelGravity = if (side == "left") Gravity.START or Gravity.CENTER_VERTICAL
+        val panelGravity = if (prefs.side == "left") Gravity.START or Gravity.CENTER_VERTICAL
                            else Gravity.END or Gravity.CENTER_VERTICAL
         val params = WindowManager.LayoutParams(
             dp(200), panelHeight,
@@ -298,19 +346,53 @@ class SidebarOverlayService : Service() {
         wm.addView(root, params)
         panelView = root
         handleView?.visibility = View.INVISIBLE
-        shown = true
+
+        // Slide + fade in
+        val slideFrom = if (prefs.side == "left") -dp(216).toFloat() else dp(216).toFloat()
+        root.translationX = slideFrom
+        root.alpha = 0f
+        root.animate()
+            .translationX(0f)
+            .alpha(1f)
+            .setDuration(220)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
     }
 
     private fun hidePanel() {
-        panelView?.let { runCatching { wm.removeView(it) } }
-        panelView = null
-        dismissOverlay?.let { runCatching { wm.removeView(it) } }
-        dismissOverlay = null
-        if (!dragMode) handleView?.visibility = View.VISIBLE
+        if (!shown) return
         shown = false
+        val panel = panelView ?: run {
+            dismissOverlay?.let { runCatching { wm.removeViewImmediate(it) } }
+            dismissOverlay = null
+            if (!dragMode) handleView?.visibility = View.VISIBLE
+            return
+        }
+        panelView = null
+        val side = pillPrefs().side
+        val overlay = dismissOverlay
+        dismissOverlay = null
+        val handle = handleView
+        val wasDrag = dragMode
+
+        val slideTo = if (side == "left") -dp(216).toFloat() else dp(216).toFloat()
+        panel.animate()
+            .translationX(slideTo)
+            .alpha(0f)
+            .setDuration(180)
+            .setInterpolator(AccelerateInterpolator())
+            .withEndAction {
+                // Zero alpha explicitly before removal to prevent the one-frame
+                // flash that occurs when the animator releases its property hold
+                panel.alpha = 0f
+                runCatching { wm.removeViewImmediate(panel) }
+                overlay?.let { runCatching { wm.removeViewImmediate(it) } }
+                if (!wasDrag) handle?.visibility = View.VISIBLE
+            }
+            .start()
     }
 
-    private fun makeAppCell(pkg: String, name: String, icon: Drawable): View {
+    private fun makeAppCell(pkg: String, name: String, icon: Drawable, labelColor: Int = Color.WHITE): View {
         val cell = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -328,7 +410,7 @@ class SidebarOverlayService : Service() {
         }
         val label = TextView(this).apply {
             text = name
-            setTextColor(Color.WHITE)
+            setTextColor(labelColor)
             textSize = 11f
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
@@ -382,22 +464,23 @@ class SidebarOverlayService : Service() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     private inner class PullTabDrawable(
-        private val side: String,
-        private val highlighted: Boolean
+        private val highlighted: Boolean,
+        private val theme: String = "dark"
     ) : Drawable() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = if (highlighted) Color.argb(230, 110, 110, 255)
-                    else Color.argb(210, 60, 60, 190)
+            color = when {
+                highlighted && theme == "light" -> Color.argb(230, 160, 160, 160)
+                highlighted -> Color.argb(230, 110, 110, 255)
+                theme == "light" -> Color.argb(210, 220, 220, 220)
+                else -> Color.argb(210, 60, 60, 190)
+            }
         }
         private val rect = RectF()
 
         override fun draw(canvas: Canvas) {
             rect.set(bounds)
-            val r = rect.width()
-            val radii = if (side == "left") floatArrayOf(0f, 0f, r, r, r, r, 0f, 0f)
-                        else floatArrayOf(r, r, 0f, 0f, 0f, 0f, r, r)
-            val path = Path().apply { addRoundRect(rect, radii, Path.Direction.CW) }
-            canvas.drawPath(path, paint)
+            val r = rect.width() / 2f
+            canvas.drawRoundRect(rect, r, r, paint)
         }
 
         override fun setAlpha(alpha: Int) { paint.alpha = alpha; invalidateSelf() }
