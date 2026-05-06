@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+**Favorites manager**
+- Redesigned into two sections: "My Sidebar" (selected apps) and "Add Apps" (all other apps)
+- Drag-to-reorder favorites via long-press on the `☰` handle; order is preserved when saved
+- Replace toggle switches with dedicated `+` (add) and `✕` (remove) buttons
+- Progressive loading: favorites section appears immediately with placeholder icons while the full app list loads in the background; icons hydrate once available
+- Search filters only the "Add Apps" section
+
 ## [1.0.0] - 2026-05-06
 
 ### Added
