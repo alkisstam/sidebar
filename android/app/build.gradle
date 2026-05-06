@@ -125,6 +125,7 @@ android {
         jniLibs {
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
             useLegacyPackaging enableLegacyPackaging.toBoolean()
+            pickFirsts += ['**/libc++_shared.so', '**/libfbjni.so']
         }
     }
     androidResources {
