@@ -10,6 +10,10 @@ An Android overlay sidebar for quick access to favorite apps. A pull-tab handle 
 - Persists across reboots via a foreground service and boot receiver
 - React Native config UI to manage favorites and handle settings
 
+## Installation
+
+Download the latest APK from the [Releases](https://github.com/alkisstam/sidebar/releases) page and sideload it onto your Android device. Enable "Install from unknown sources" in your device settings if prompted.
+
 ## Setup
 
 1. Install dependencies
