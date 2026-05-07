@@ -1,15 +1,32 @@
 # Changelog
 
-## [Unreleased]
+## [1.1.0] - 2026-05-07
 
-### Changed
+### Added
 
-**Favorites manager**
-- Redesigned into two sections: "My Sidebar" (selected apps) and "Add Apps" (all other apps)
-- Drag-to-reorder favorites via long-press on the `☰` handle; order is preserved when saved
-- Replace toggle switches with dedicated `+` (add) and `✕` (remove) buttons
-- Progressive loading: favorites section appears immediately with placeholder icons while the full app list loads in the background; icons hydrate once available
-- Search filters only the "Add Apps" section
+**Bottom tab navigation**
+- Four tabs: Handle, Behavior, Control, Apps — replaces the single scrolling settings screen
+
+**Control panel (overlay)**
+- Quick-settings tile grid accessible from the sidebar panel
+- Tiles: Torch, Do Not Disturb, Auto-rotate, Auto-brightness, Ringer mode, Screen timeout
+- Ringer mode cycles Ring → Vibrate → Silent (skips Silent if DND permission is not granted)
+- Screen timeout toggles between 30 seconds and 30 minutes
+- Status bar shows current time (left) and battery percentage (right); updates every 10 s while panel is open
+- Control tab in app shows permission status for DND and Write Settings with one-tap grant buttons
+
+**Apps tab — split pane**
+- Left panel: 3-column grid of all installed apps with search; tap to add/remove from favorites
+- Right panel: favorites list with drag-to-reorder via long-press on the handle icon
+- Save button commits order and selection to the overlay service
+
+**Behavior tab**
+- Auto-hide in fullscreen, show app labels, vibration feedback toggles
+- Swipe sensitivity slider
+
+### Fixed
+- Pull-tab touch target too small for narrow pills: transparent 24 dp minimum-width container separates hit area from visual pill width
+- Favorites panel collapsed to zero height in split pane due to `style` vs `containerStyle` on DraggableFlatList
 
 ## [1.0.0] - 2026-05-06
 
