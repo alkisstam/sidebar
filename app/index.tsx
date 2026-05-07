@@ -58,12 +58,13 @@ export default function Index() {
   const [savingOverlay, setSavingOverlay] = useState(false);
 
   const [allApps, setAllApps] = useState<InstalledApp[]>([]);
-  const [favPkgs, setFavPkgs] = useState<string[]>([]);
   const [listData, setListData] = useState<FavItem[]>([]);
   const [query, setQuery] = useState("");
   const [appsLoading, setAppsLoading] = useState(false);
   const [appsSaving, setAppsSaving] = useState(false);
   const appsLoadedRef = useRef(false);
+  // Holds the saved package list until apps finish loading so we can seed listData.
+  const pendingFavsRef = useRef<string[]>([]);
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
@@ -83,7 +84,7 @@ export default function Index() {
       setOverlay(overlaySettings);
       setDndPerm(dnd);
       setWritePerm(write);
-      setFavPkgs(favs);
+      pendingFavsRef.current = favs;
     });
 
     const sub = AppState.addEventListener("change", (next) => {
@@ -108,7 +109,17 @@ export default function Index() {
       appsLoadedRef.current = true;
       setAppsLoading(true);
       Sidebar.getInstalledApps()
-        .then(setAllApps)
+        .then(apps => {
+          setAllApps(apps);
+          // Seed the favorites list from saved packages now that we have app data.
+          const map = new Map(apps.map(a => [a.packageName, a]));
+          setListData(
+            pendingFavsRef.current.map(pkg => {
+              const app = map.get(pkg);
+              return { key: pkg, name: app?.name ?? pkg.split(".").pop() ?? pkg, icon: app?.icon ?? null };
+            })
+          );
+        })
         .catch(() => Alert.alert("Error", "Failed to load installed apps."))
         .finally(() => setAppsLoading(false));
     }
@@ -138,39 +149,27 @@ export default function Index() {
     finally { setSavingOverlay(false); }
   }
 
-  function toggleFav(pkg: string) {
-    setFavPkgs(prev =>
-      prev.includes(pkg) ? prev.filter(p => p !== pkg) : [...prev, pkg]
+  function toggleFav(app: InstalledApp) {
+    setListData(prev =>
+      prev.some(i => i.key === app.packageName)
+        ? prev.filter(i => i.key !== app.packageName)
+        : [...prev, { key: app.packageName, name: app.name, icon: app.icon }]
     );
   }
 
   async function saveFavs() {
     setAppsSaving(true);
-    try { await Sidebar.saveFavorites(favPkgs); }
+    try { await Sidebar.saveFavorites(listData.map(i => i.key)); }
     catch { Alert.alert("Error", "Failed to save favorites."); }
     finally { setAppsSaving(false); }
   }
-
-  const appMap = useMemo(
-    () => new Map(allApps.map(a => [a.packageName, a])),
-    [allApps]
-  );
 
   const filteredApps = useMemo(() => {
     const q = query.toLowerCase();
     return q ? allApps.filter(a => a.name.toLowerCase().includes(q)) : allApps;
   }, [allApps, query]);
 
-  useEffect(() => {
-    setListData(
-      favPkgs.map(pkg => {
-        const app = appMap.get(pkg);
-        return { key: pkg, name: app?.name ?? pkg.split(".").pop() ?? pkg, icon: app?.icon ?? null };
-      })
-    );
-  }, [favPkgs, appMap]);
-
-  const favSet = useMemo(() => new Set(favPkgs), [favPkgs]);
+  const favSet = useMemo(() => new Set(listData.map(i => i.key)), [listData]);
 
   const s = styles(colors);
 
@@ -196,7 +195,7 @@ export default function Index() {
     ({ item }: { item: InstalledApp }) => {
       const selected = favSet.has(item.packageName);
       return (
-        <Pressable style={s.appCell} onPress={() => toggleFav(item.packageName)}>
+        <Pressable style={s.appCell} onPress={() => toggleFav(item)}>
           <View style={s.appIconWrap}>
             <Image
               source={{ uri: `data:image/png;base64,${item.icon}` }}
@@ -428,10 +427,7 @@ export default function Index() {
               data={listData}
               keyExtractor={item => item.key}
               renderItem={renderFavItem}
-              onDragEnd={({ data }) => {
-                setListData(data);
-                setFavPkgs(data.map(i => i.key));
-              }}
+              onDragEnd={({ data }) => setListData(data)}
               style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
