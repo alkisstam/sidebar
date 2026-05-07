@@ -3,6 +3,7 @@ package com.anonymous.sidebar
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
@@ -10,18 +11,24 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.util.Base64
+import android.util.Log
+import android.util.LruCache
 import com.facebook.react.bridge.*
 import org.json.JSONArray
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.Executors
 
 class SidebarModule(private val reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
+
+    private val iconCache = LruCache<String, String>(200)
+    private val executor = Executors.newSingleThreadExecutor()
 
     override fun getName() = "SidebarModule"
 
     @ReactMethod
     fun getInstalledApps(promise: Promise) {
-        Thread {
+        executor.submit {
             try {
                 val pm = reactContext.packageManager
                 val intent = Intent(Intent.ACTION_MAIN, null).apply {
@@ -35,14 +42,20 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
                     val map = WritableNativeMap()
                     map.putString("name", app.loadLabel(pm).toString())
                     map.putString("packageName", app.activityInfo.packageName)
-                    map.putString("icon", drawableToBase64(app.loadIcon(pm)))
+                    map.putString("icon", cachedIcon(pm, app))
                     result.pushMap(map)
                 }
                 promise.resolve(result)
             } catch (e: Exception) {
+                Log.e(TAG, "Failed to get installed apps", e)
                 promise.reject("ERR_GET_APPS", e.message, e)
             }
-        }.start()
+        }
+    }
+
+    private fun cachedIcon(pm: PackageManager, app: ResolveInfo): String {
+        val pkg = app.activityInfo.packageName
+        return iconCache.get(pkg) ?: drawableToBase64(app.loadIcon(pm)).also { iconCache.put(pkg, it) }
     }
 
     @ReactMethod
@@ -62,7 +75,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         try {
             val jArr = JSONArray(json)
             for (i in 0 until jArr.length()) arr.pushString(jArr.getString(i))
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse favorites JSON", e)
+        }
         promise.resolve(arr)
     }
 
@@ -157,5 +172,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         val out = ByteArrayOutputStream()
         scaled.compress(Bitmap.CompressFormat.PNG, 85, out)
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+    }
+
+    companion object {
+        private const val TAG = "SidebarModule"
     }
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -28,6 +29,7 @@ export default function Favorites() {
   const [orderedFavs, setOrderedFavs] = useState<InstalledApp[]>([]);
   const [appMap, setAppMap] = useState<Map<string, InstalledApp>>(new Map());
   const [allLoaded, setAllLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [query, setQuery] = useState("");
 
   const orderedFavsRef = useRef(orderedFavs);
@@ -36,15 +38,22 @@ export default function Favorites() {
   }, [orderedFavs]);
 
   useEffect(() => {
-    Sidebar.getFavorites().then((favs) => {
-      setOrderedFavs(favs.map((pkg) => ({ name: "", packageName: pkg, icon: "" })));
-    });
-    Sidebar.getInstalledApps().then((apps) => {
-      const map = new Map(apps.map((a) => [a.packageName, a]));
-      setAppMap(map);
-      setAllLoaded(true);
-      setOrderedFavs((prev) => prev.map((p) => map.get(p.packageName) ?? p));
-    });
+    Sidebar.getFavorites()
+      .then((favs) => {
+        setOrderedFavs(favs.map((pkg) => ({ name: "", packageName: pkg, icon: "" })));
+      })
+      .catch(() => Alert.alert("Error", "Failed to load favorites."));
+    Sidebar.getInstalledApps()
+      .then((apps) => {
+        const map = new Map(apps.map((a) => [a.packageName, a]));
+        setAppMap(map);
+        setAllLoaded(true);
+        setOrderedFavs((prev) => prev.map((p) => map.get(p.packageName) ?? p));
+      })
+      .catch(() => {
+        setLoadError(true);
+        setAllLoaded(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -59,8 +68,12 @@ export default function Favorites() {
   }, [navigation]);
 
   async function handleDone() {
-    await Sidebar.saveFavorites(orderedFavsRef.current.map((a) => a.packageName));
-    router.back();
+    try {
+      await Sidebar.saveFavorites(orderedFavsRef.current.map((a) => a.packageName));
+      router.back();
+    } catch {
+      Alert.alert("Error", "Failed to save favorites. Please try again.");
+    }
   }
 
   function addFav(app: InstalledApp) {
@@ -151,6 +164,9 @@ export default function Favorites() {
       {!allLoaded && (
         <ActivityIndicator style={{ marginVertical: 20 }} color={colors.tint} />
       )}
+      {loadError && (
+        <Text style={s.errorText}>Failed to load installed apps.</Text>
+      )}
     </>
   );
 
@@ -161,11 +177,15 @@ export default function Favorites() {
       keyExtractor={(item) => item.packageName}
       renderItem={({ item }) => (
         <Pressable style={s.row} onPress={() => addFav(item)}>
-          <Image
-            source={{ uri: `data:image/png;base64,${item.icon}` }}
-            style={s.icon}
-            contentFit="contain"
-          />
+          {item.icon ? (
+            <Image
+              source={{ uri: `data:image/png;base64,${item.icon}` }}
+              style={s.icon}
+              contentFit="contain"
+            />
+          ) : (
+            <View style={[s.icon, s.iconPlaceholder]} />
+          )}
           <Text style={s.appName} numberOfLines={1}>
             {item.name}
           </Text>
@@ -268,6 +288,12 @@ function styles(colors: ReturnType<typeof makeColors>) {
       height: StyleSheet.hairlineWidth,
       backgroundColor: colors.separator,
       marginLeft: 76,
+    },
+    errorText: {
+      fontSize: 14,
+      color: colors.danger,
+      textAlign: "center",
+      marginVertical: 16,
     },
   });
 }
