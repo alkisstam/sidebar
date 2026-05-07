@@ -1,5 +1,6 @@
 package com.anonymous.sidebar
 
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -154,6 +155,62 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putDouble("opacity", prefs.getFloat("pill_opacity", 1.0f).toDouble())
         map.putString("theme", prefs.getString("pill_theme", "dark") ?: "dark")
         promise.resolve(map)
+    }
+
+    @ReactMethod
+    fun getOverlaySettings(promise: Promise) {
+        val prefs = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
+        val map = WritableNativeMap()
+        map.putBoolean("autoHideFullscreen", prefs.getBoolean("auto_hide_fullscreen", false))
+        map.putBoolean("showLabels", prefs.getBoolean("show_labels", true))
+        map.putBoolean("vibration", prefs.getBoolean("vibration", true))
+        map.putInt("sensitivity", prefs.getInt("swipe_sensitivity", 16))
+        promise.resolve(map)
+    }
+
+    @ReactMethod
+    fun saveOverlaySettings(settings: ReadableMap, promise: Promise) {
+        val prefs = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE).edit()
+        if (settings.hasKey("autoHideFullscreen")) prefs.putBoolean("auto_hide_fullscreen", settings.getBoolean("autoHideFullscreen"))
+        if (settings.hasKey("showLabels")) prefs.putBoolean("show_labels", settings.getBoolean("showLabels"))
+        if (settings.hasKey("vibration")) prefs.putBoolean("vibration", settings.getBoolean("vibration"))
+        if (settings.hasKey("sensitivity")) prefs.putInt("swipe_sensitivity", settings.getInt("sensitivity"))
+        prefs.apply()
+        val intent = Intent(reactContext, SidebarOverlayService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            reactContext.startForegroundService(intent)
+        } else {
+            reactContext.startService(intent)
+        }
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun hasDndPermission(promise: Promise) {
+        val nm = reactContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        promise.resolve(nm.isNotificationPolicyAccessGranted)
+    }
+
+    @ReactMethod
+    fun requestDndPermission(promise: Promise) {
+        val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        reactContext.startActivity(intent)
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun hasWriteSettingsPermission(promise: Promise) {
+        promise.resolve(Settings.System.canWrite(reactContext))
+    }
+
+    @ReactMethod
+    fun requestWriteSettingsPermission(promise: Promise) {
+        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
+            Uri.parse("package:${reactContext.packageName}"))
+            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        reactContext.startActivity(intent)
+        promise.resolve(null)
     }
 
     private fun drawableToBase64(drawable: android.graphics.drawable.Drawable): String {

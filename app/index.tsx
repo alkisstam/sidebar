@@ -14,7 +14,7 @@ import {
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import Sidebar, { PillSettings } from "../modules/sidebar";
+import Sidebar, { OverlaySettings, PillSettings } from "../modules/sidebar";
 
 const DEFAULT_PILL: PillSettings = {
   height: 80,
@@ -23,6 +23,13 @@ const DEFAULT_PILL: PillSettings = {
   side: "left",
   opacity: 1.0,
   theme: "dark",
+};
+
+const DEFAULT_OVERLAY: OverlaySettings = {
+  autoHideFullscreen: false,
+  showLabels: true,
+  vibration: true,
+  sensitivity: 16,
 };
 
 export default function Index() {
@@ -34,6 +41,10 @@ export default function Index() {
   const [serviceEnabled, setServiceEnabled] = useState(false);
   const [pill, setPill] = useState<PillSettings>(DEFAULT_PILL);
   const [saving, setSaving] = useState(false);
+  const [overlay, setOverlay] = useState<OverlaySettings>(DEFAULT_OVERLAY);
+  const [savingOverlay, setSavingOverlay] = useState(false);
+  const [dndPerm, setDndPerm] = useState(true);
+  const [writePerm, setWritePerm] = useState(true);
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
@@ -42,15 +53,29 @@ export default function Index() {
       Sidebar.hasOverlayPermission(),
       Sidebar.isServiceEnabled(),
       Sidebar.getPillSettings(),
-    ]).then(([perm, svc, pillSettings]) => {
+      Sidebar.getOverlaySettings(),
+      Sidebar.hasDndPermission(),
+      Sidebar.hasWriteSettingsPermission(),
+    ]).then(([perm, svc, pillSettings, overlaySettings, dnd, write]) => {
       setPermissionGranted(perm);
       setServiceEnabled(svc);
       setPill(pillSettings);
+      setOverlay(overlaySettings);
+      setDndPerm(dnd);
+      setWritePerm(write);
     });
 
     const sub = AppState.addEventListener("change", (next) => {
       if (appState.current !== "active" && next === "active") {
-        Sidebar.hasOverlayPermission().then(setPermissionGranted);
+        Promise.all([
+          Sidebar.hasOverlayPermission(),
+          Sidebar.hasDndPermission(),
+          Sidebar.hasWriteSettingsPermission(),
+        ]).then(([perm, dnd, write]) => {
+          setPermissionGranted(perm);
+          setDndPerm(dnd);
+          setWritePerm(write);
+        });
       }
       appState.current = next;
     });
@@ -79,6 +104,17 @@ export default function Index() {
       Alert.alert("Error", "Failed to save handle settings.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveOverlay() {
+    setSavingOverlay(true);
+    try {
+      await Sidebar.saveOverlaySettings(overlay);
+    } catch {
+      Alert.alert("Error", "Failed to save behavior settings.");
+    } finally {
+      setSavingOverlay(false);
     }
   }
 
@@ -207,6 +243,95 @@ export default function Index() {
         >
           <Text style={s.saveBtnText}>{saving ? "Saving…" : "Save Handle Settings"}</Text>
         </Pressable>
+      </View>
+
+      <Text style={s.sectionHeader}>BEHAVIOR</Text>
+      <View style={s.section}>
+        <View style={s.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.rowLabel}>Auto-hide in fullscreen</Text>
+            <Text style={s.rowSub}>Hide pull-tab when an app is fullscreen</Text>
+          </View>
+          <Switch
+            value={overlay.autoHideFullscreen}
+            onValueChange={(v) => setOverlay((p) => ({ ...p, autoHideFullscreen: v }))}
+            trackColor={{ true: colors.tint }}
+          />
+        </View>
+
+        <View style={s.separator} />
+
+        <View style={s.row}>
+          <Text style={[s.rowLabel, { flex: 1 }]}>Show app labels</Text>
+          <Switch
+            value={overlay.showLabels}
+            onValueChange={(v) => setOverlay((p) => ({ ...p, showLabels: v }))}
+            trackColor={{ true: colors.tint }}
+          />
+        </View>
+
+        <View style={s.separator} />
+
+        <View style={s.row}>
+          <Text style={[s.rowLabel, { flex: 1 }]}>Vibration feedback</Text>
+          <Switch
+            value={overlay.vibration}
+            onValueChange={(v) => setOverlay((p) => ({ ...p, vibration: v }))}
+            trackColor={{ true: colors.tint }}
+          />
+        </View>
+
+        <View style={s.separator} />
+
+        <SliderRow
+          label="Sensitivity"
+          min={8} max={48} step={1}
+          value={overlay.sensitivity}
+          display={`${overlay.sensitivity}`}
+          leftEdge="High" rightEdge="Low"
+          onChange={(v) => setOverlay((p) => ({ ...p, sensitivity: Math.round(v) }))}
+          colors={colors}
+          s={s}
+        />
+
+        <Pressable
+          style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]}
+          onPress={saveOverlay}
+          disabled={savingOverlay}
+        >
+          <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save Behavior Settings"}</Text>
+        </Pressable>
+      </View>
+
+      <Text style={s.sectionHeader}>CONTROL PANEL</Text>
+      <View style={s.section}>
+        <View style={s.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.rowLabel}>Do Not Disturb</Text>
+            <Text style={s.rowSub}>{dndPerm ? "Permission granted" : "Swipe to control panel tile to grant"}</Text>
+          </View>
+          {dndPerm
+            ? <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+            : <Pressable style={s.grantBtn} onPress={Sidebar.requestDndPermission}>
+                <Text style={s.grantBtnText}>Grant</Text>
+              </Pressable>
+          }
+        </View>
+
+        <View style={s.separator} />
+
+        <View style={s.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.rowLabel}>Auto-rotate & Brightness</Text>
+            <Text style={s.rowSub}>{writePerm ? "Permission granted" : "Required to modify system settings"}</Text>
+          </View>
+          {writePerm
+            ? <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+            : <Pressable style={s.grantBtn} onPress={Sidebar.requestWriteSettingsPermission}>
+                <Text style={s.grantBtnText}>Grant</Text>
+              </Pressable>
+          }
+        </View>
       </View>
 
       <Text style={s.sectionHeader}>APPS</Text>
@@ -340,5 +465,12 @@ function styles(colors: ReturnType<typeof makeColors>) {
       marginTop: 4,
     },
     bannerBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+    grantBtn: {
+      backgroundColor: colors.tint,
+      borderRadius: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+    },
+    grantBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
   });
 }

@@ -17,6 +17,13 @@ export interface PillSettings {
   theme: 'light' | 'dark';
 }
 
+export interface OverlaySettings {
+  autoHideFullscreen: boolean;
+  showLabels: boolean;
+  vibration: boolean;
+  sensitivity: number;
+}
+
 export default {
   getInstalledApps(): Promise<InstalledApp[]> {
     return SidebarModule.getInstalledApps();
@@ -47,5 +54,23 @@ export default {
   },
   getPillSettings(): Promise<PillSettings> {
     return SidebarModule.getPillSettings();
+  },
+  getOverlaySettings(): Promise<OverlaySettings> {
+    return SidebarModule.getOverlaySettings();
+  },
+  saveOverlaySettings(settings: OverlaySettings): Promise<void> {
+    return SidebarModule.saveOverlaySettings(settings);
+  },
+  hasDndPermission(): Promise<boolean> {
+    return SidebarModule.hasDndPermission();
+  },
+  requestDndPermission(): Promise<void> {
+    return SidebarModule.requestDndPermission();
+  },
+  hasWriteSettingsPermission(): Promise<boolean> {
+    return SidebarModule.hasWriteSettingsPermission();
+  },
+  requestWriteSettingsPermission(): Promise<void> {
+    return SidebarModule.requestWriteSettingsPermission();
   },
 };
