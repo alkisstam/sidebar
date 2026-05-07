@@ -421,18 +421,18 @@ export default function Index() {
           {/* Right: favorites */}
           <View style={s.appsRight}>
             <Text style={s.favHeader}>Favorites</Text>
-            {favItems.length === 0 ? (
-              <Text style={s.favEmpty}>Tap apps on the left to add.</Text>
-            ) : (
-              <DraggableFlatList
-                data={favItems}
-                keyExtractor={item => item.key}
-                renderItem={renderFavItem}
-                onDragEnd={({ data }) => setFavPkgs(data.map(i => i.key))}
-                style={{ flex: 1 }}
-                showsVerticalScrollIndicator={false}
-              />
-            )}
+            <DraggableFlatList
+              data={favItems}
+              keyExtractor={item => item.key}
+              renderItem={renderFavItem}
+              onDragEnd={({ data }) => setFavPkgs(data.map(i => i.key))}
+              extraData={favPkgs}
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <Text style={s.favEmpty}>Tap apps on the left to add.</Text>
+              }
+            />
             <Pressable
               style={[s.saveBtn, s.saveBtnCompact, appsSaving && s.saveBtnDisabled]}
               onPress={saveFavs}
