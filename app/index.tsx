@@ -369,7 +369,7 @@ export default function Index() {
                 <Text style={s.rowSub}>{dndPerm ? "Permission granted" : "Swipe to control panel tile to grant"}</Text>
               </View>
               {dndPerm
-                ? <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+                ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                 : <Pressable style={s.grantBtn} onPress={Sidebar.requestDndPermission}>
                     <Text style={s.grantBtnText}>Grant</Text>
                   </Pressable>
@@ -382,7 +382,7 @@ export default function Index() {
                 <Text style={s.rowSub}>{writePerm ? "Permission granted" : "Required to modify system settings"}</Text>
               </View>
               {writePerm
-                ? <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+                ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                 : <Pressable style={s.grantBtn} onPress={Sidebar.requestWriteSettingsPermission}>
                     <Text style={s.grantBtnText}>Grant</Text>
                   </Pressable>
@@ -447,15 +447,17 @@ export default function Index() {
         </View>
       </View>}
 
-      {/* Bottom tab bar */}
+      {/* M3 Navigation Bar */}
       <View style={s.tabBar}>
         {TABS.map(tab => (
           <Pressable key={tab.id} style={s.tabItem} onPress={() => setActiveTab(tab.id)}>
-            <Ionicons
-              name={tab.icon as any}
-              size={22}
-              color={activeTab === tab.id ? colors.tint : colors.subtext}
-            />
+            <View style={[s.navIndicator, activeTab === tab.id && s.navIndicatorActive]}>
+              <Ionicons
+                name={tab.icon as any}
+                size={24}
+                color={activeTab === tab.id ? colors.onPrimaryContainer : colors.subtext}
+              />
+            </View>
             <Text style={[s.tabLabel, activeTab === tab.id && s.tabLabelActive]}>
               {tab.label}
             </Text>
@@ -475,22 +477,27 @@ function SliderRow({
   colors: ReturnType<typeof makeColors>;
   s: ReturnType<typeof styles>;
 }) {
+  const fillPct = `${((value - min) / (max - min)) * 100}%`;
   return (
     <View style={s.settingRow}>
       <Text style={s.settingLabel}>{label}</Text>
       <View style={s.sliderWrap}>
         {leftEdge && <Text style={s.sliderEdge}>{leftEdge}</Text>}
-        <Slider
-          style={{ flex: 1 }}
-          minimumValue={min}
-          maximumValue={max}
-          step={step}
-          value={value}
-          onValueChange={onChange}
-          minimumTrackTintColor={colors.tint}
-          maximumTrackTintColor={colors.separator}
-          thumbTintColor={colors.tint}
-        />
+        <View style={s.sliderTrackWrap}>
+          <View pointerEvents="none" style={s.sliderTrackBg} />
+          <View pointerEvents="none" style={[s.sliderTrackFill, { width: fillPct }]} />
+          <Slider
+            style={StyleSheet.absoluteFillObject}
+            minimumValue={min}
+            maximumValue={max}
+            step={step}
+            value={value}
+            onValueChange={onChange}
+            minimumTrackTintColor="transparent"
+            maximumTrackTintColor="transparent"
+            thumbTintColor={colors.primary}
+          />
+        </View>
         {rightEdge && <Text style={s.sliderEdge}>{rightEdge}</Text>}
         <Text style={[s.sliderEdge, { width: 36, textAlign: "right" }]}>{display}</Text>
       </View>
@@ -501,14 +508,23 @@ function SliderRow({
 function makeColors(scheme: ReturnType<typeof useColorScheme>) {
   const dark = scheme === "dark";
   return {
-    bg: dark ? "#1c1c1e" : "#f2f2f7",
-    card: dark ? "#2c2c2e" : "#ffffff",
-    text: dark ? "#ffffff" : "#000000",
-    subtext: dark ? "#8e8e93" : "#6c6c70",
-    tint: "#007AFF",
-    separator: dark ? "#38383a" : "#e0e0e5",
-    bannerBg: dark ? "#3a2000" : "#fff3cd",
-    bannerText: dark ? "#ffcc00" : "#7a5200",
+    bg:                   dark ? "#141218" : "#FFFBFE",
+    surfaceContainer:     dark ? "#211F26" : "#F3EFF7",
+    surfaceContainerHigh: dark ? "#2B2930" : "#EDE8F2",
+    card:                 dark ? "#211F26" : "#F3EFF7",
+    primary:              dark ? "#D0BCFF" : "#6750A4",
+    onPrimary:            dark ? "#381E72" : "#FFFFFF",
+    primaryContainer:     dark ? "#4F378B" : "#EADDFF",
+    onPrimaryContainer:   dark ? "#EADDFF" : "#21005D",
+    secondaryContainer:   dark ? "#4A4458" : "#E8DEF8",
+    onSecondaryContainer: dark ? "#E8DEF8" : "#1D192B",
+    text:                 dark ? "#E6E1E5" : "#1C1B1F",
+    subtext:              dark ? "#CAC4D0" : "#49454F",
+    outline:              dark ? "#938F99" : "#79747E",
+    separator:            dark ? "#49454F" : "#CAC4D0",
+    tint:                 dark ? "#D0BCFF" : "#6750A4",
+    errorContainer:       dark ? "#8C1D18" : "#F9DEDC",
+    onErrorContainer:     dark ? "#F2B8B5" : "#410E0B",
   };
 }
 
@@ -516,126 +532,156 @@ function styles(colors: ReturnType<typeof makeColors>) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
 
-    // Service card
     serviceCard: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      margin: 12,
+      backgroundColor: colors.surfaceContainerHigh,
+      borderRadius: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 18,
+      margin: 16,
       marginBottom: 8,
     },
 
-    // Tab content scrollable areas
     scroll: { flex: 1 },
-    scrollContent: { padding: 12, paddingBottom: 24 },
+    scrollContent: { padding: 16, paddingBottom: 32 },
 
-    // Section card
-    section: { backgroundColor: colors.card, borderRadius: 12, overflow: "hidden" },
-    separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.separator, marginLeft: 16 },
+    section: { backgroundColor: colors.surfaceContainer, borderRadius: 16, overflow: "hidden" },
+    separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.separator, marginLeft: 72 },
 
     row: {
       flexDirection: "row", alignItems: "center",
-      paddingHorizontal: 16, paddingVertical: 14,
+      paddingHorizontal: 20, paddingVertical: 16,
     },
     rowLabel: { fontSize: 16, color: colors.text },
     rowSub: { fontSize: 13, color: colors.subtext, marginTop: 2 },
 
     settingRow: {
       flexDirection: "row", alignItems: "center",
-      paddingHorizontal: 16, paddingVertical: 12, gap: 12,
+      paddingHorizontal: 20, paddingVertical: 14, gap: 16,
     },
-    settingLabel: { fontSize: 16, color: colors.text, width: 72 },
+    settingLabel: { fontSize: 16, color: colors.text, width: 80 },
 
-    segmented: { flexDirection: "row", gap: 8 },
-    segBtn: { paddingHorizontal: 18, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.tint },
-    segBtnActive: { backgroundColor: colors.tint },
-    segBtnText: { fontSize: 14, color: colors.tint },
-    segBtnTextActive: { color: "#fff" },
+    // M3 Segmented Button
+    segmented: {
+      flex: 1,
+      flexDirection: "row",
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.outline,
+      overflow: "hidden",
+    },
+    segBtn: { paddingHorizontal: 20, paddingVertical: 9, flex: 1, alignItems: "center" },
+    segBtnActive: { backgroundColor: colors.secondaryContainer },
+    segBtnText: { fontSize: 14, color: colors.outline, letterSpacing: 0.1 },
+    segBtnTextActive: { color: colors.onSecondaryContainer, fontWeight: "500" },
 
     sliderWrap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
     sliderEdge: { fontSize: 12, color: colors.subtext },
-
-    saveBtn: {
-      margin: 12, backgroundColor: colors.tint,
-      borderRadius: 10, paddingVertical: 12, alignItems: "center",
+    sliderTrackWrap: { flex: 1, height: 40, justifyContent: "center" },
+    sliderTrackBg: {
+      position: "absolute", left: 0, right: 0,
+      height: 4, borderRadius: 2, backgroundColor: colors.separator,
     },
-    saveBtnCompact: { margin: 8, paddingVertical: 10 },
-    saveBtnDisabled: { opacity: 0.5 },
-    saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+    sliderTrackFill: {
+      position: "absolute", left: 0,
+      height: 4, borderRadius: 2, backgroundColor: colors.primary,
+    },
 
-    grantBtn: { backgroundColor: colors.tint, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
-    grantBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+    // M3 Filled Button
+    saveBtn: {
+      margin: 16, backgroundColor: colors.primary,
+      borderRadius: 20, paddingVertical: 14, alignItems: "center",
+    },
+    saveBtnCompact: { margin: 10, paddingVertical: 12 },
+    saveBtnDisabled: { opacity: 0.38 },
+    saveBtnText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500", letterSpacing: 0.1 },
 
-    // Banner
-    banner: { backgroundColor: colors.bannerBg, borderRadius: 12, padding: 16, gap: 8, margin: 12, marginBottom: 0 },
-    bannerTitle: { fontSize: 15, fontWeight: "700", color: colors.bannerText },
-    bannerBody: { fontSize: 14, color: colors.bannerText, lineHeight: 20 },
-    bannerBtn: { alignSelf: "flex-start", backgroundColor: colors.tint, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8, marginTop: 4 },
-    bannerBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+    // M3 Tonal Button
+    grantBtn: {
+      backgroundColor: colors.primaryContainer,
+      borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9,
+    },
+    grantBtnText: { color: colors.onPrimaryContainer, fontSize: 14, fontWeight: "500" },
 
-    // Apps tab split pane
+    // M3 Error Banner
+    banner: {
+      backgroundColor: colors.errorContainer,
+      borderRadius: 16, padding: 16, gap: 8, margin: 16, marginBottom: 0,
+    },
+    bannerTitle: { fontSize: 14, fontWeight: "700", color: colors.onErrorContainer },
+    bannerBody: { fontSize: 13, color: colors.onErrorContainer, lineHeight: 20 },
+    bannerBtn: {
+      alignSelf: "flex-start", backgroundColor: colors.primary,
+      borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, marginTop: 4,
+    },
+    bannerBtnText: { color: colors.onPrimary, fontWeight: "500", fontSize: 14 },
+
     appsPane: { flex: 1, flexDirection: "row" },
     appsLeft: { flex: 6, paddingTop: 8 },
     paneDiv: { width: StyleSheet.hairlineWidth, backgroundColor: colors.separator },
     appsRight: { flex: 4, paddingTop: 8 },
 
+    // M3 Search Bar
     search: {
-      marginHorizontal: 8, marginBottom: 6,
-      paddingHorizontal: 12, paddingVertical: 8,
-      backgroundColor: colors.card, borderRadius: 10,
-      fontSize: 13, color: colors.text,
+      marginHorizontal: 8, marginBottom: 8,
+      paddingHorizontal: 16, paddingVertical: 12,
+      backgroundColor: colors.surfaceContainerHigh, borderRadius: 28,
+      fontSize: 14, color: colors.text,
     },
 
     appGrid: { paddingHorizontal: 4, paddingBottom: 16 },
     appCell: {
       flex: 1, alignItems: "center",
-      paddingVertical: 8, paddingHorizontal: 2,
+      paddingVertical: 10, paddingHorizontal: 2,
     },
-    appIconWrap: { position: "relative", width: 48, height: 48 },
-    appIcon: { width: 48, height: 48, borderRadius: 10 },
+    appIconWrap: { position: "relative", width: 52, height: 52 },
+    appIcon: { width: 52, height: 52, borderRadius: 12 },
     checkBadge: {
       position: "absolute", bottom: -2, right: -2,
-      width: 16, height: 16, borderRadius: 8,
-      backgroundColor: colors.tint, alignItems: "center", justifyContent: "center",
+      width: 18, height: 18, borderRadius: 9,
+      backgroundColor: colors.primary, alignItems: "center", justifyContent: "center",
     },
     appCellName: {
       fontSize: 10, color: colors.subtext, textAlign: "center",
       marginTop: 4, lineHeight: 13,
     },
-    appCellNameSelected: { color: colors.tint },
+    appCellNameSelected: { color: colors.primary },
 
     favHeader: {
-      fontSize: 12, fontWeight: "600", color: colors.subtext,
-      marginBottom: 6, marginHorizontal: 10, letterSpacing: 0.5,
+      fontSize: 11, fontWeight: "600", color: colors.subtext,
+      marginBottom: 6, marginHorizontal: 12, letterSpacing: 0.5,
       textTransform: "uppercase",
     },
     favEmpty: {
-      fontSize: 12, color: colors.subtext,
-      marginHorizontal: 10, marginTop: 8, lineHeight: 18,
+      fontSize: 13, color: colors.subtext,
+      marginHorizontal: 12, marginTop: 12, lineHeight: 18,
     },
     favRow: {
       flexDirection: "row", alignItems: "center",
-      paddingHorizontal: 8, height: 58,
-      backgroundColor: colors.card, gap: 8,
+      paddingHorizontal: 12, height: 64,
+      backgroundColor: colors.surfaceContainer, gap: 12,
     },
-    favRowActive: { opacity: 0.8, backgroundColor: colors.bg },
-    favIcon: { width: 36, height: 36, borderRadius: 8 },
+    favRowActive: { backgroundColor: colors.surfaceContainerHigh },
+    favIcon: { width: 40, height: 40, borderRadius: 10 },
     iconPlaceholder: { backgroundColor: colors.separator },
-    favName: { flex: 1, fontSize: 12, color: colors.text },
+    favName: { flex: 1, fontSize: 13, color: colors.text },
     dragHandle: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
 
-    // Tab bar
+    // M3 Navigation Bar
     tabBar: {
       flexDirection: "row",
-      backgroundColor: colors.card,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.separator,
+      backgroundColor: colors.surfaceContainer,
+      paddingBottom: 14,
+      paddingTop: 8,
     },
-    tabItem: { flex: 1, alignItems: "center", paddingVertical: 8, gap: 2 },
-    tabLabel: { fontSize: 10, color: colors.subtext },
-    tabLabelActive: { color: colors.tint },
+    tabItem: { flex: 1, alignItems: "center", gap: 4 },
+    navIndicator: {
+      width: 64, height: 32, borderRadius: 16,
+      alignItems: "center", justifyContent: "center",
+    },
+    navIndicatorActive: { backgroundColor: colors.primaryContainer },
+    tabLabel: { fontSize: 12, color: colors.subtext, letterSpacing: 0.4 },
+    tabLabelActive: { color: colors.primary, fontWeight: "500" },
   });
 }

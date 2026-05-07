@@ -56,16 +56,17 @@ export default function Favorites() {
       });
   }, []);
 
+  const primaryColor = colors.primary;
   useEffect(() => {
     navigation.setOptions({
       title: "Favorites",
       headerRight: () => (
         <Pressable onPress={handleDone} style={{ paddingHorizontal: 8 }}>
-          <Text style={{ color: "#007AFF", fontSize: 16, fontWeight: "600" }}>Done</Text>
+          <Text style={{ color: primaryColor, fontSize: 14, fontWeight: "500", letterSpacing: 0.1 }}>Done</Text>
         </Pressable>
       ),
     });
-  }, [navigation]);
+  }, [navigation, primaryColor]);
 
   async function handleDone() {
     try {
@@ -162,7 +163,7 @@ export default function Favorites() {
         clearButtonMode="while-editing"
       />
       {!allLoaded && (
-        <ActivityIndicator style={{ marginVertical: 20 }} color={colors.tint} />
+        <ActivityIndicator style={{ marginVertical: 20 }} color={colors.primary} />
       )}
       {loadError && (
         <Text style={s.errorText}>Failed to load installed apps.</Text>
@@ -202,13 +203,17 @@ export default function Favorites() {
 function makeColors(scheme: ReturnType<typeof useColorScheme>) {
   const dark = scheme === "dark";
   return {
-    bg: dark ? "#1c1c1e" : "#f2f2f7",
-    card: dark ? "#2c2c2e" : "#ffffff",
-    text: dark ? "#ffffff" : "#000000",
-    subtext: dark ? "#8e8e93" : "#6c6c70",
-    tint: "#007AFF",
-    separator: dark ? "#38383a" : "#e0e0e5",
-    danger: "#FF3B30",
+    bg:                   dark ? "#141218" : "#FFFBFE",
+    surfaceContainer:     dark ? "#211F26" : "#F3EFF7",
+    surfaceContainerHigh: dark ? "#2B2930" : "#EDE8F2",
+    primary:              dark ? "#D0BCFF" : "#6750A4",
+    onPrimary:            dark ? "#381E72" : "#FFFFFF",
+    text:                 dark ? "#E6E1E5" : "#1C1B1F",
+    subtext:              dark ? "#CAC4D0" : "#49454F",
+    separator:            dark ? "#49454F" : "#CAC4D0",
+    errorContainer:       dark ? "#8C1D18" : "#F9DEDC",
+    onErrorContainer:     dark ? "#F2B8B5" : "#410E0B",
+    danger:               dark ? "#F2B8B5" : "#B3261E",
   };
 }
 
@@ -216,34 +221,36 @@ function styles(colors: ReturnType<typeof makeColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     sectionHeader: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: "600",
       color: colors.subtext,
       marginTop: 24,
-      marginBottom: 6,
-      marginLeft: 16,
+      marginBottom: 8,
+      marginLeft: 20,
       letterSpacing: 0.5,
+      textTransform: "uppercase",
     },
     card: {
-      backgroundColor: colors.card,
-      borderRadius: 12,
+      backgroundColor: colors.surfaceContainer,
+      borderRadius: 16,
       overflow: "hidden",
       marginHorizontal: 16,
     },
     emptyText: {
       fontSize: 14,
       color: colors.subtext,
-      padding: 16,
+      padding: 20,
       textAlign: "center",
     },
+    // M3 Search Bar
     search: {
       marginHorizontal: 16,
-      marginBottom: 4,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      backgroundColor: colors.card,
-      borderRadius: 10,
-      fontSize: 15,
+      marginBottom: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.surfaceContainerHigh,
+      borderRadius: 28,
+      fontSize: 14,
       color: colors.text,
     },
     row: {
@@ -251,20 +258,22 @@ function styles(colors: ReturnType<typeof makeColors>) {
       alignItems: "center",
       paddingHorizontal: 16,
       height: ROW_HEIGHT,
-      backgroundColor: colors.card,
+      backgroundColor: colors.surfaceContainer,
       gap: 12,
     },
-    rowActive: { opacity: 0.9, backgroundColor: colors.bg },
-    icon: { width: 48, height: 48, borderRadius: 10 },
+    rowActive: { backgroundColor: colors.surfaceContainerHigh },
+    icon: { width: 48, height: 48, borderRadius: 12 },
     iconPlaceholder: { backgroundColor: colors.separator },
     appName: { flex: 1, fontSize: 15, color: colors.text },
     removeBtn: {
-      width: 28,
-      height: 28,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.errorContainer,
       alignItems: "center",
       justifyContent: "center",
     },
-    removeBtnText: { fontSize: 16, color: colors.danger, fontWeight: "600" },
+    removeBtnText: { fontSize: 14, color: colors.onErrorContainer, fontWeight: "600" },
     dragHandle: {
       width: 32,
       height: 32,
@@ -274,7 +283,7 @@ function styles(colors: ReturnType<typeof makeColors>) {
     dragHandleText: { fontSize: 20, color: colors.subtext },
     addBtn: {
       fontSize: 24,
-      color: colors.tint,
+      color: colors.primary,
       fontWeight: "300",
       lineHeight: 28,
       paddingHorizontal: 4,
