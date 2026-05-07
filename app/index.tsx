@@ -59,6 +59,7 @@ export default function Index() {
 
   const [allApps, setAllApps] = useState<InstalledApp[]>([]);
   const [favPkgs, setFavPkgs] = useState<string[]>([]);
+  const [listData, setListData] = useState<FavItem[]>([]);
   const [query, setQuery] = useState("");
   const [appsLoading, setAppsLoading] = useState(false);
   const [appsSaving, setAppsSaving] = useState(false);
@@ -160,13 +161,14 @@ export default function Index() {
     return q ? allApps.filter(a => a.name.toLowerCase().includes(q)) : allApps;
   }, [allApps, query]);
 
-  const favItems = useMemo<FavItem[]>(
-    () => favPkgs.map(pkg => {
-      const app = appMap.get(pkg);
-      return { key: pkg, name: app?.name ?? pkg.split(".").pop() ?? pkg, icon: app?.icon ?? null };
-    }),
-    [favPkgs, appMap]
-  );
+  useEffect(() => {
+    setListData(
+      favPkgs.map(pkg => {
+        const app = appMap.get(pkg);
+        return { key: pkg, name: app?.name ?? pkg.split(".").pop() ?? pkg, icon: app?.icon ?? null };
+      })
+    );
+  }, [favPkgs, appMap]);
 
   const favSet = useMemo(() => new Set(favPkgs), [favPkgs]);
 
@@ -410,6 +412,7 @@ export default function Index() {
                 keyExtractor={item => item.packageName}
                 renderItem={renderAppCell}
                 numColumns={3}
+                extraData={favSet}
                 contentContainerStyle={s.appGrid}
                 showsVerticalScrollIndicator={false}
               />
@@ -422,11 +425,13 @@ export default function Index() {
           <View style={s.appsRight}>
             <Text style={s.favHeader}>Favorites</Text>
             <DraggableFlatList
-              data={favItems}
+              data={listData}
               keyExtractor={item => item.key}
               renderItem={renderFavItem}
-              onDragEnd={({ data }) => setFavPkgs(data.map(i => i.key))}
-              extraData={favPkgs}
+              onDragEnd={({ data }) => {
+                setListData(data);
+                setFavPkgs(data.map(i => i.key));
+              }}
               style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
