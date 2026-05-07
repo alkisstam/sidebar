@@ -52,3 +52,9 @@ modules/
 android/
   ...               Native Android service and overlay implementation
 ```
+
+## To-do
+
+- [ ] Change tabs in the main app by swiping
+- [ ] Change from favorite apps to control center by swiping in the control center
+- [ ] Add a toggle in settings to enable or disable the control center
