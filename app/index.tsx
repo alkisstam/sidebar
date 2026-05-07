@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   AppState,
   AppStateStatus,
   Pressable,
@@ -58,17 +59,27 @@ export default function Index() {
 
   async function toggleService(value: boolean) {
     setServiceEnabled(value);
-    if (value) {
-      await Sidebar.startService();
-    } else {
-      await Sidebar.stopService();
+    try {
+      if (value) {
+        await Sidebar.startService();
+      } else {
+        await Sidebar.stopService();
+      }
+    } catch {
+      setServiceEnabled(!value);
+      Alert.alert("Error", `Failed to ${value ? "start" : "stop"} the sidebar service.`);
     }
   }
 
   async function saveHandle() {
     setSaving(true);
-    await Sidebar.savePillSettings(pill);
-    setSaving(false);
+    try {
+      await Sidebar.savePillSettings(pill);
+    } catch {
+      Alert.alert("Error", "Failed to save handle settings.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const s = styles(colors);

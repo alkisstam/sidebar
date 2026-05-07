@@ -8,6 +8,7 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.*
 import android.provider.Settings
+import android.util.Log
 import android.view.*
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
@@ -17,12 +18,14 @@ import org.json.JSONArray
 
 class SidebarOverlayService : Service() {
 
+    private enum class DragState { IDLE, DRAGGING }
+
     private lateinit var wm: WindowManager
     private var handleView: View? = null
     private var panelView: View? = null
     private var dismissOverlay: View? = null
     private var shown = false
-    private var dragMode = false
+    private var dragState = DragState.IDLE
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -175,7 +178,7 @@ class SidebarOverlayService : Service() {
     // ── Drag mode ────────────────────────────────────────────────────────────
 
     private fun enterDragMode() {
-        dragMode = true
+        dragState = DragState.DRAGGING
         val handle = handleView ?: return
         val prefs = pillPrefs()
         handle.background = PullTabDrawable(highlighted = true, prefs.theme)
@@ -205,7 +208,7 @@ class SidebarOverlayService : Service() {
     }
 
     private fun exitDragMode() {
-        dragMode = false
+        dragState = DragState.IDLE
         val handle = handleView ?: return
         val prefs = pillPrefs()
         handle.background = PullTabDrawable(highlighted = false, prefs.theme)
@@ -311,7 +314,8 @@ class SidebarOverlayService : Service() {
                     val name = pm.getApplicationLabel(info).toString()
                     val icon = pm.getApplicationIcon(pkg)
                     row?.addView(makeAppCell(pkg, name, icon, labelColor))
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load app info for $pkg", e)
                     row?.addView(View(this).apply {
                         layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
                     })
@@ -365,7 +369,7 @@ class SidebarOverlayService : Service() {
         val panel = panelView ?: run {
             dismissOverlay?.let { runCatching { wm.removeViewImmediate(it) } }
             dismissOverlay = null
-            if (!dragMode) handleView?.visibility = View.VISIBLE
+            if (dragState == DragState.IDLE) handleView?.visibility = View.VISIBLE
             return
         }
         panelView = null
@@ -373,7 +377,7 @@ class SidebarOverlayService : Service() {
         val overlay = dismissOverlay
         dismissOverlay = null
         val handle = handleView
-        val wasDrag = dragMode
+        val wasDrag = dragState == DragState.DRAGGING
 
         val slideTo = if (side == "left") -dp(216).toFloat() else dp(216).toFloat()
         panel.animate()
@@ -428,9 +432,23 @@ class SidebarOverlayService : Service() {
 
     private fun launch(pkg: String) {
         hidePanel()
-        val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return
+        val intent = packageManager.getLaunchIntentForPackage(pkg)
+        if (intent == null) {
+            Log.w(TAG, "No launch intent for $pkg")
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(this, "Can't open this app", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch $pkg", e)
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(this, "Failed to launch app", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun loadFavorites(): List<String> {
@@ -440,7 +458,9 @@ class SidebarOverlayService : Service() {
             try {
                 val arr = JSONArray(json)
                 for (i in 0 until arr.length()) add(arr.getString(i))
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse favorites JSON", e)
+            }
         }
     }
 
@@ -487,5 +507,9 @@ class SidebarOverlayService : Service() {
         override fun setColorFilter(cf: ColorFilter?) { paint.colorFilter = cf; invalidateSelf() }
         @Deprecated("Deprecated in Java")
         override fun getOpacity() = PixelFormat.TRANSLUCENT
+    }
+
+    companion object {
+        private const val TAG = "SidebarOverlayService"
     }
 }
