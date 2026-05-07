@@ -26,7 +26,8 @@ class SidebarOverlayService : Service() {
     private enum class DragState { IDLE, DRAGGING }
 
     private lateinit var wm: WindowManager
-    private var handleView: View? = null
+    private var handleView: View? = null      // the window container (full touch target)
+    private var pillInnerView: View? = null   // the visual pill inside the container
     private var panelView: View? = null
     private var dismissOverlay: View? = null
     private var shown = false
@@ -135,6 +136,7 @@ class SidebarOverlayService : Service() {
         fsHandler.removeCallbacks(fsRunnable)
         handleView?.let { runCatching { wm.removeView(it) } }
         handleView = null
+        pillInnerView = null
         addHandle()
     }
 
@@ -187,7 +189,7 @@ class SidebarOverlayService : Service() {
         val yPos = (prefs.position * screenHeight - pillHeight / 2).toInt()
             .coerceIn(0, screenHeight - pillHeight)
         return WindowManager.LayoutParams(
-            dp(prefs.width), pillHeight,
+            maxOf(dp(prefs.width), dp(24)), pillHeight,
             overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -204,17 +206,24 @@ class SidebarOverlayService : Service() {
     private fun addHandle() {
         val prefs = pillPrefs()
         val oPrefs = overlayPrefs()
-        val handle = View(this).apply {
+        val pill = View(this).apply {
             background = PullTabDrawable(highlighted = false, prefs.theme)
             alpha = prefs.opacity
         }
-        installSwipeListener(handle, oPrefs.sensitivity)
-        wm.addView(handle, handleParams(prefs))
-        handleView = handle
+        val pillGravity = if (prefs.side == "left") Gravity.START else Gravity.END
+        val container = FrameLayout(this).apply {
+            addView(pill, FrameLayout.LayoutParams(dp(prefs.width), FrameLayout.LayoutParams.MATCH_PARENT).apply {
+                gravity = pillGravity
+            })
+        }
+        installSwipeListener(container, oPrefs.sensitivity)
+        wm.addView(container, handleParams(prefs))
+        handleView = container
+        pillInnerView = pill
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            handle.post {
-                handle.systemGestureExclusionRects = listOf(
-                    android.graphics.Rect(0, 0, handle.width, handle.height)
+            container.post {
+                container.systemGestureExclusionRects = listOf(
+                    android.graphics.Rect(0, 0, container.width, container.height)
                 )
             }
         }
@@ -265,7 +274,7 @@ class SidebarOverlayService : Service() {
         dragState = DragState.DRAGGING
         val handle = handleView ?: return
         val prefs = pillPrefs()
-        handle.background = PullTabDrawable(highlighted = true, prefs.theme)
+        pillInnerView?.background = PullTabDrawable(highlighted = true, prefs.theme)
         handle.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_MOVE -> {
@@ -295,8 +304,8 @@ class SidebarOverlayService : Service() {
         val handle = handleView ?: return
         val prefs = pillPrefs()
         val oPrefs = overlayPrefs()
-        handle.background = PullTabDrawable(highlighted = false, prefs.theme)
-        handle.alpha = prefs.opacity
+        pillInnerView?.background = PullTabDrawable(highlighted = false, prefs.theme)
+        pillInnerView?.alpha = prefs.opacity
         handle.setOnTouchListener(null)
         installSwipeListener(handle, oPrefs.sensitivity)
     }
