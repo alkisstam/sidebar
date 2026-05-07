@@ -5,6 +5,7 @@ import {
   AppState,
   AppStateStatus,
   FlatList,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -362,11 +363,30 @@ export default function Index() {
       {/* Control tab */}
       <View style={{ display: activeTab === "control" ? "flex" : "none", flex: 1 }}>
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+          {(() => {
+            const granted = [permissionGranted, dndPerm, writePerm].filter(Boolean).length;
+            return (
+              <Text style={s.permCount}>{granted} / 3 permissions granted</Text>
+            );
+          })()}
           <View style={s.section}>
             <View style={s.row}>
               <View style={{ flex: 1 }}>
+                <Text style={s.rowLabel}>Display over other apps</Text>
+                <Text style={s.rowSub}>{permissionGranted ? "Permission granted" : "Required to show the sidebar handle"}</Text>
+              </View>
+              {permissionGranted
+                ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                : <Pressable style={s.grantBtn} onPress={Sidebar.requestOverlayPermission}>
+                    <Text style={s.grantBtnText}>Grant</Text>
+                  </Pressable>
+              }
+            </View>
+            <View style={s.separator} />
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
                 <Text style={s.rowLabel}>Do Not Disturb</Text>
-                <Text style={s.rowSub}>{dndPerm ? "Permission granted" : "Swipe to control panel tile to grant"}</Text>
+                <Text style={s.rowSub}>{dndPerm ? "Permission granted" : "Required for DND control tile"}</Text>
               </View>
               {dndPerm
                 ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
@@ -389,6 +409,10 @@ export default function Index() {
               }
             </View>
           </View>
+          <Pressable style={[s.saveBtn, s.openSettingsBtn]} onPress={() => Linking.openSettings()}>
+            <Ionicons name="settings-outline" size={16} color={colors.onPrimary} style={{ marginRight: 8 }} />
+            <Text style={s.saveBtnText}>Open App Settings</Text>
+          </Pressable>
         </ScrollView>
       </View>
 
@@ -588,11 +612,17 @@ function styles(colors: ReturnType<typeof makeColors>) {
       height: 4, borderRadius: 2, backgroundColor: colors.primary,
     },
 
+    permCount: {
+      fontSize: 13, color: colors.subtext, marginBottom: 12,
+      textAlign: "center", letterSpacing: 0.3,
+    },
+
     // M3 Filled Button
     saveBtn: {
       margin: 16, backgroundColor: colors.primary,
       borderRadius: 20, paddingVertical: 14, alignItems: "center",
     },
+    openSettingsBtn: { marginTop: 8, flexDirection: "row", justifyContent: "center" },
     saveBtnCompact: { margin: 10, paddingVertical: 12 },
     saveBtnDisabled: { opacity: 0.38 },
     saveBtnText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500", letterSpacing: 0.1 },

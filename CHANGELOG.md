@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.2.0] - 2026-05-07
+
+### Added
+
+**Material Expressive 3 redesign**
+- New color palette using M3 tokens: purple primary (#6750A4 light / #D0BCFF dark), surface containers, error containers
+- M3 Navigation Bar with pill indicator (primaryContainer) on the active tab
+- M3 Segmented Button: single outlined group with secondaryContainer fill on active segment
+- M3 Filled Button (20 dp radius) for save actions; Tonal Button for grant/permission actions
+- Custom filled slider track: 4 dp primary-colored overlay behind the native slider with transparent track
+- M3 Search Bar (28 dp pill radius) in the Apps tab
+- Cards at 16–20 dp radius; service toggle card at 20 dp
+
+**Control tab improvements**
+- "Display over other apps" permission row added (was only shown as a banner)
+- "X / 3 permissions granted" summary count at the top
+- "Open App Settings" button that opens the system app settings page directly
+
+**Floating panel animation improvements**
+- Open: `OvershootInterpolator(1.1f)` + scale 0.94→1, 320 ms — spring-in effect
+- Close: `AccelerateInterpolator(1.5f)` + scale 1→0.94, 200 ms
+- Page swipe: `DecelerateInterpolator(1.5f)`, 260 ms
+- App icon press: scale to 0.85 with `OvershootInterpolator(2f)` spring-back
+- Control tile press: scale to 0.90 with `OvershootInterpolator(1.8f)` spring-back
+
+### Changed
+- App name updated to "Floating Panel - Sidebar" (launcher label, notification)
+
 ## [1.1.0] - 2026-05-07
 
 ### Added

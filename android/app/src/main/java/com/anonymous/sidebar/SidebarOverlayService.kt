@@ -17,6 +17,7 @@ import android.util.Log
 import android.view.*
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.*
 import androidx.core.app.NotificationCompat
 import org.json.JSONArray
@@ -413,16 +414,17 @@ class SidebarOverlayService : Service() {
         val gesture = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(e1: MotionEvent?, e2: MotionEvent, vX: Float, vY: Float): Boolean {
                 if (Math.abs(vX) <= Math.abs(vY) * 1.2f) return false
+                val swipeInterp = DecelerateInterpolator(1.5f)
                 if (vX < 0 && currentPage == 0) {
                     currentPage = 1
-                    favPage.animate().translationX(-pagerWidth.toFloat()).setDuration(200).start()
-                    ctrlPage.animate().translationX(0f).setDuration(200).start()
+                    favPage.animate().translationX(-pagerWidth.toFloat()).setDuration(260).setInterpolator(swipeInterp).start()
+                    ctrlPage.animate().translationX(0f).setDuration(260).setInterpolator(swipeInterp).start()
                     dot1.background = makeDotDrawable(dotInactive)
                     dot2.background = makeDotDrawable(dotActive)
                 } else if (vX > 0 && currentPage == 1) {
                     currentPage = 0
-                    favPage.animate().translationX(0f).setDuration(200).start()
-                    ctrlPage.animate().translationX(pagerWidth.toFloat()).setDuration(200).start()
+                    favPage.animate().translationX(0f).setDuration(260).setInterpolator(swipeInterp).start()
+                    ctrlPage.animate().translationX(pagerWidth.toFloat()).setDuration(260).setInterpolator(swipeInterp).start()
                     dot1.background = makeDotDrawable(dotActive)
                     dot2.background = makeDotDrawable(dotInactive)
                 }
@@ -451,9 +453,11 @@ class SidebarOverlayService : Service() {
         val slideFrom = if (prefs.side == "left") -dp(216).toFloat() else dp(216).toFloat()
         root.translationX = slideFrom
         root.alpha = 0f
+        root.scaleX = 0.94f
+        root.scaleY = 0.94f
         root.animate()
-            .translationX(0f).alpha(1f)
-            .setDuration(220).setInterpolator(DecelerateInterpolator())
+            .translationX(0f).alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(320).setInterpolator(OvershootInterpolator(1.1f))
             .start()
     }
 
@@ -478,8 +482,8 @@ class SidebarOverlayService : Service() {
 
         val slideTo = if (side == "left") -dp(216).toFloat() else dp(216).toFloat()
         panel.animate()
-            .translationX(slideTo).alpha(0f)
-            .setDuration(180).setInterpolator(AccelerateInterpolator())
+            .translationX(slideTo).alpha(0f).scaleX(0.94f).scaleY(0.94f)
+            .setDuration(200).setInterpolator(AccelerateInterpolator(1.5f))
             .withEndAction {
                 panel.alpha = 0f
                 runCatching { wm.removeViewImmediate(panel) }
@@ -679,6 +683,14 @@ class SidebarOverlayService : Service() {
             onClick()
             Handler(Looper.getMainLooper()).postDelayed({ update() }, 120)
         }
+        tile.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> tile.animate().scaleX(0.90f).scaleY(0.90f).setDuration(80).start()
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                    tile.animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(OvershootInterpolator(1.8f)).start()
+            }
+            false
+        }
 
         tile.addView(iconTv)
         tile.addView(TextView(this).apply {
@@ -838,6 +850,14 @@ class SidebarOverlayService : Service() {
             isFocusable = true
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             setOnClickListener { launch(pkg) }
+            setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> animate().scaleX(0.85f).scaleY(0.85f).setDuration(80).start()
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                        animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(OvershootInterpolator(2f)).start()
+                }
+                false
+            }
         }
         cell.addView(ImageView(this).apply {
             setImageDrawable(icon)
@@ -915,7 +935,7 @@ class SidebarOverlayService : Service() {
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val ch = NotificationChannel("sidebar_svc", "Sidebar", NotificationManager.IMPORTANCE_MIN)
+            val ch = NotificationChannel("sidebar_svc", "Floating Panel", NotificationManager.IMPORTANCE_MIN)
             ch.setShowBadge(false)
             (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(ch)
         }
@@ -923,7 +943,7 @@ class SidebarOverlayService : Service() {
 
     private fun buildNotification(): Notification =
         NotificationCompat.Builder(this, "sidebar_svc")
-            .setContentTitle("Sidebar")
+            .setContentTitle("Floating Panel")
             .setContentText("Pull-tab active on screen edge")
             .setSmallIcon(android.R.drawable.ic_menu_sort_by_size)
             .setPriority(NotificationCompat.PRIORITY_MIN)
