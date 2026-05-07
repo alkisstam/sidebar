@@ -62,6 +62,7 @@ export default function Index() {
   const [query, setQuery] = useState("");
   const [appsLoading, setAppsLoading] = useState(false);
   const [appsSaving, setAppsSaving] = useState(false);
+  const [appsTabMounted, setAppsTabMounted] = useState(false);
   const appsLoadedRef = useRef(false);
   // Holds the saved package list until apps finish loading so we can seed listData.
   const pendingFavsRef = useRef<string[]>([]);
@@ -105,6 +106,7 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
+    if (activeTab === "apps") setAppsTabMounted(true);
     if (activeTab === "apps" && !appsLoadedRef.current) {
       appsLoadedRef.current = true;
       setAppsLoading(true);
@@ -390,8 +392,8 @@ export default function Index() {
         </ScrollView>
       </View>
 
-      {/* Apps tab */}
-      <View style={{ display: activeTab === "apps" ? "flex" : "none", flex: 1 }}>
+      {/* Apps tab — lazy-mounted so DraggableFlatList first renders while visible */}
+      {appsTabMounted && <View style={{ display: activeTab === "apps" ? "flex" : "none", flex: 1 }}>
         <View style={s.appsPane}>
           {/* Left: all apps grid */}
           <View style={s.appsLeft}>
@@ -428,7 +430,7 @@ export default function Index() {
               keyExtractor={item => item.key}
               renderItem={renderFavItem}
               onDragEnd={({ data }) => setListData(data)}
-              style={{ flex: 1 }}
+              containerStyle={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <Text style={s.favEmpty}>Tap apps on the left to add.</Text>
@@ -443,7 +445,7 @@ export default function Index() {
             </Pressable>
           </View>
         </View>
-      </View>
+      </View>}
 
       {/* Bottom tab bar */}
       <View style={s.tabBar}>
