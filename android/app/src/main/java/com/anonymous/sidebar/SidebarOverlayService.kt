@@ -33,8 +33,10 @@ class SidebarOverlayService : Service() {
     private var dismissOverlay: View? = null
     private var shown = false
     private var dragState = DragState.IDLE
+    private var vibrationEnabled = true
 
-    // Fullscreen detection
+    // Fullscreen detection — only active when auto-hide-fullscreen pref is on.
+    // 2 s interval is plenty; tighter polling prevents deep-sleep unnecessarily.
     private val fsHandler = Handler(Looper.getMainLooper())
     private val fsRunnable = object : Runnable {
         override fun run() {
@@ -42,7 +44,7 @@ class SidebarOverlayService : Service() {
             if (handle != null && !shown && dragState == DragState.IDLE) {
                 handle.visibility = if (isSystemFullscreen()) View.INVISIBLE else View.VISIBLE
             }
-            fsHandler.postDelayed(this, 500)
+            fsHandler.postDelayed(this, 2000)
         }
     }
 
@@ -69,10 +71,23 @@ class SidebarOverlayService : Service() {
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_SCREEN_OFF) {
+                // No point polling for fullscreen state while the screen is off.
+                fsHandler.removeCallbacks(fsRunnable)
+                return
+            }
             if (!Settings.canDrawOverlays(context)) return
             Handler(Looper.getMainLooper()).post {
-                val detached = handleView?.windowToken == null
-                if (detached) addHandle()
+                if (handleView?.windowToken == null) {
+                    addHandle()
+                } else {
+                    val autoHide = getSharedPreferences("sidebar_prefs", MODE_PRIVATE)
+                        .getBoolean("auto_hide_fullscreen", false)
+                    if (autoHide) {
+                        fsHandler.removeCallbacks(fsRunnable)
+                        fsHandler.post(fsRunnable)
+                    }
+                }
             }
         }
     }
@@ -92,6 +107,7 @@ class SidebarOverlayService : Service() {
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT)
+            addAction(Intent.ACTION_SCREEN_OFF)
         }
         registerReceiver(screenReceiver, filter)
 
@@ -207,6 +223,7 @@ class SidebarOverlayService : Service() {
     private fun addHandle() {
         val prefs = pillPrefs()
         val oPrefs = overlayPrefs()
+        vibrationEnabled = oPrefs.vibration
         val pill = View(this).apply {
             background = PullTabDrawable(highlighted = false, prefs.theme)
             alpha = prefs.opacity
@@ -255,7 +272,7 @@ class SidebarOverlayService : Service() {
     }
 
     private fun vibrate() {
-        if (!overlayPrefs().vibration) return
+        if (!vibrationEnabled) return
         val vib = getSystemService(VIBRATOR_SERVICE) as? Vibrator ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vib.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
