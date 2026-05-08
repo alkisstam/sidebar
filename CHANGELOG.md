@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.3.0] - 2026-05-08
+
+### Changed
+
+**Floating panel — consolidated single-page layout**
+- Removed the second "control center" tab from the floating panel
+- Quick controls (Torch, Auto-rotate, Auto-brightness, Ringer mode) moved to a strip at the top of the favorites panel with a distinct M3 `controlsBg` surface and 16 dp rounded corners
+- Favorites app grid scrolls below the controls strip in a single unified panel
+- Removed status-bar time/battery polling, DND tile, screen-timeout tile, pager dots, and swipe-between-pages gesture from the overlay (~300 lines removed)
+
+**Main app — swipe tab navigation**
+- Tabs (Handle, Behavior, Control, Apps) can now be switched by swiping left/right
+- Gesture requires a clear horizontal intent (|ΔX| > |ΔY| × 1.5) and a minimum 40 dp displacement to avoid triggering during vertical scrolls
+
+### Fixed
+
+**Code quality improvements**
+- Icon encoding now uses an `LruCache<String, String>(200)` keyed by package name — icons are encoded once per process lifetime instead of on every `getInstalledApps` call
+- `getInstalledApps` moved from a raw `Thread` to `Executors.newSingleThreadExecutor()` to serialize concurrent calls
+- Silent `catch` blocks replaced with `Log.e` and user-facing `Alert` dialogs in both the native module and React Native screens
+- `dragMode: Boolean` replaced with a `DragState` enum in `SidebarOverlayService` for explicit state tracking
+- Removed unused `READ_EXTERNAL_STORAGE` and `WRITE_EXTERNAL_STORAGE` permissions from `AndroidManifest.xml`
+
+**Battery consumption**
+- Fullscreen-detection poll interval slowed from 500 ms to 2000 ms
+- Polling stops entirely when the screen is off (`ACTION_SCREEN_OFF`) and resumes on unlock (`ACTION_USER_PRESENT`)
+- `vibrationEnabled` flag cached in memory to avoid a `SharedPreferences` read on every swipe event
+
 ## [1.2.0] - 2026-05-07
 
 ### Added
