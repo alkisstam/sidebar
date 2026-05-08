@@ -4,12 +4,15 @@ An Android overlay sidebar for quick access to favorite apps. A pull-tab handle 
 
 ## Features
 
-- Pull-tab handle on the screen edge (left or right, configurable position and size)
+- Pull-tab handle on the screen edge (left or right) with configurable vertical position, size, opacity, and theme
 - Floating panel with a quick-controls strip (torch, auto-rotate, auto-brightness, ringer mode) at the top and a scrollable 2-column grid of favorite apps below
 - Tap any app to launch it and close the panel
+- Drag-to-reorder favorites via long-press handle in the Apps tab
 - Persists across reboots via a foreground service and boot receiver
-- Material Design 3 config UI with four tabs: Handle, Behavior, Control, Apps
-- Swipe left/right to switch between tabs in the main app
+- Auto-hides in fullscreen apps (configurable); battery-friendly polling that pauses when the screen is off
+- Material Design 3 config UI with four tabs: Handle, Behavior, Control, Apps; swipe left/right to switch tabs
+- Behavior tab: auto-hide in fullscreen, app labels, vibration feedback, swipe sensitivity
+- Control tab: manage overlay, Do Not Disturb, and system-settings permissions in one place
 
 ## Installation
 
