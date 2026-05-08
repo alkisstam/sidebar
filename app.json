@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "sidebar",
-    "slug": "sidebar",
+    "name": "Floating Panel - Sidebar",
+    "slug": "FloatingPanel-Sidebar",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
