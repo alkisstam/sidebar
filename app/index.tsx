@@ -23,6 +23,7 @@ import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Sidebar, { InstalledApp, OverlaySettings, PillSettings } from "../modules/sidebar";
 
 type Tab = "handle" | "behavior" | "control" | "apps";
@@ -47,6 +48,24 @@ export default function Index() {
   const colors = makeColors(scheme);
 
   const [activeTab, setActiveTab] = useState<Tab>("handle");
+  const activeTabRef = useRef<Tab>("handle");
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+
+  const swipeGesture = useMemo(() =>
+    Gesture.Pan()
+      .runOnJS(true)
+      .minPointers(1)
+      .maxPointers(1)
+      .onEnd((e) => {
+        const tabOrder: Tab[] = ["handle", "behavior", "control", "apps"];
+        const isHorizontal = Math.abs(e.translationX) > Math.abs(e.translationY) * 1.5;
+        if (!isHorizontal || Math.abs(e.translationX) < 40) return;
+        const idx = tabOrder.indexOf(activeTabRef.current);
+        if (e.translationX < 0 && idx < tabOrder.length - 1) setActiveTab(tabOrder[idx + 1]);
+        else if (e.translationX > 0 && idx > 0) setActiveTab(tabOrder[idx - 1]);
+      }),
+    []
+  );
 
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [serviceEnabled, setServiceEnabled] = useState(false);
@@ -248,6 +267,9 @@ export default function Index() {
           trackColor={{ true: colors.tint }}
         />
       </View>
+
+      <GestureDetector gesture={swipeGesture}>
+      <View style={{ flex: 1 }}>
 
       {/* Handle tab */}
       <View style={{ display: activeTab === "handle" ? "flex" : "none", flex: 1 }}>
@@ -470,6 +492,9 @@ export default function Index() {
           </View>
         </View>
       </View>}
+
+      </View>
+      </GestureDetector>
 
       {/* M3 Navigation Bar */}
       <View style={s.tabBar}>

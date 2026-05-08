@@ -27,8 +27,8 @@ class SidebarOverlayService : Service() {
     private enum class DragState { IDLE, DRAGGING }
 
     private lateinit var wm: WindowManager
-    private var handleView: View? = null      // the window container (full touch target)
-    private var pillInnerView: View? = null   // the visual pill inside the container
+    private var handleView: View? = null
+    private var pillInnerView: View? = null
     private var panelView: View? = null
     private var dismissOverlay: View? = null
     private var shown = false
@@ -55,17 +55,6 @@ class SidebarOverlayService : Service() {
     private val torchCallback = object : CameraManager.TorchCallback() {
         override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
             if (cameraId == torchCameraId) torchEnabled = enabled
-        }
-    }
-
-    // Control page status bar
-    private var ctrlTimeView: TextView? = null
-    private var ctrlBattView: TextView? = null
-    private val statusHandler = Handler(Looper.getMainLooper())
-    private val statusRunnable = object : Runnable {
-        override fun run() {
-            updateStatus()
-            statusHandler.postDelayed(this, 10_000)
         }
     }
 
@@ -111,7 +100,6 @@ class SidebarOverlayService : Service() {
         }
         registerReceiver(screenReceiver, filter)
 
-        // Init torch
         cameraManager = getSystemService(CAMERA_SERVICE) as? CameraManager
         cameraManager?.let { cm ->
             try {
@@ -260,9 +248,7 @@ class SidebarOverlayService : Service() {
                 MotionEvent.ACTION_UP -> {
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
-                    if (Math.abs(dx) >= dp(sensitivityDp) && Math.abs(dx) > Math.abs(dy)) {
-                        toggle()
-                    }
+                    if (Math.abs(dx) >= dp(sensitivityDp) && Math.abs(dx) > Math.abs(dy)) toggle()
                     true
                 }
                 MotionEvent.ACTION_MOVE -> true
@@ -337,15 +323,17 @@ class SidebarOverlayService : Service() {
         val prefs = pillPrefs()
         val oPrefs = overlayPrefs()
         val pkgs = loadFavorites()
+        val pm = packageManager
+        val light = prefs.theme == "light"
 
         val screenHeight = resources.displayMetrics.heightPixels
         val maxPanelHeight = (screenHeight * 0.72).toInt()
         val rows = if (pkgs.isEmpty()) 1 else (pkgs.size + 1) / 2
         val rowH = if (oPrefs.showLabels) dp(82) else dp(68)
-        val favH = dp(8) + rows * rowH + dp(16)
-        val ctrlH = dp(8) + dp(28) + dp(4) + dp(76) * 3 + dp(8) * 2 + dp(16)
-        val headerH = dp(44) // drag indicator + dots
-        val panelHeight = (headerH + maxOf(favH, ctrlH)).coerceAtMost(maxPanelHeight)
+        // Controls strip: top+bottom padding + 2 tile rows + gap between rows
+        val controlsH = dp(8) + dp(60) + dp(6) + dp(60) + dp(8)
+        val appsH = dp(4) + rows * rowH + dp(16)
+        val panelHeight = (dp(24) + controlsH + dp(6) + appsH).coerceAtMost(maxPanelHeight)
 
         val overlay = View(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
@@ -360,11 +348,14 @@ class SidebarOverlayService : Service() {
         ))
         dismissOverlay = overlay
 
-        val light = prefs.theme == "light"
-        val panelBg = if (light) Color.argb(245, 240, 240, 245) else Color.argb(245, 18, 18, 32)
-        val indicatorColor = if (light) Color.argb(60, 0, 0, 0) else Color.argb(80, 255, 255, 255)
-        val dotActive = if (light) Color.argb(200, 30, 30, 30) else Color.WHITE
-        val dotInactive = if (light) Color.argb(60, 30, 30, 30) else Color.argb(60, 255, 255, 255)
+        // M3 color tokens
+        val panelBg    = if (light) Color.argb(248, 255, 251, 254) else Color.argb(248, 28, 27, 31)
+        val controlsBg = if (light) Color.argb(255, 237, 232, 242) else Color.argb(255, 43, 41, 48)
+        val tileBg     = if (light) Color.argb(220, 231, 224, 236) else Color.argb(220, 55, 52, 62)
+        val tileActive = if (light) Color.argb(255, 103, 80, 164)  else Color.argb(255, 79, 55, 139)
+        val indClr     = if (light) Color.argb(60, 0, 0, 0)        else Color.argb(80, 255, 255, 255)
+        val labelColor = if (light) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
+        val emptyColor = if (light) Color.argb(160, 73, 69, 79)    else Color.argb(160, 202, 196, 208)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -378,94 +369,127 @@ class SidebarOverlayService : Service() {
         }
 
         // Drag indicator
-        val dragIndicator = View(this).apply {
+        root.addView(View(this).apply {
             background = GradientDrawable().apply {
-                setColor(indicatorColor)
+                setColor(indClr)
                 cornerRadius = dp(2).toFloat()
             }
             isLongClickable = true
             layoutParams = LinearLayout.LayoutParams(dp(32), dp(4)).apply {
                 gravity = Gravity.CENTER_HORIZONTAL
                 topMargin = dp(10)
-                bottomMargin = dp(6)
+                bottomMargin = dp(10)
             }
             setOnLongClickListener {
                 hidePanel()
                 Handler(Looper.getMainLooper()).postDelayed({ enterDragMode() }, 300)
                 true
             }
-        }
-        root.addView(dragIndicator)
-
-        // Page dots
-        val dot1 = makeDot(dotActive)
-        val dot2 = makeDot(dotInactive)
-        root.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(16)
-            ).apply { bottomMargin = dp(4) }
-            addView(dot1)
-            addView(dot2)
         })
 
-        // Pager
-        val pagerWidth = dp(200)
-        val pager = FrameLayout(this).apply { clipChildren = true }
-
-        val favPage = buildFavoritesPage(pkgs, prefs, oPrefs.showLabels)
-        pager.addView(favPage, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-
-        val ctrlPage = buildControlPage(prefs)
-        ctrlPage.translationX = pagerWidth.toFloat()
-        pager.addView(ctrlPage, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-
-        root.addView(pager, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-
-        // Swipe to switch pages
-        var currentPage = 0
-        val gesture = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onFling(e1: MotionEvent?, e2: MotionEvent, vX: Float, vY: Float): Boolean {
-                if (Math.abs(vX) <= Math.abs(vY) * 1.2f) return false
-                val swipeInterp = DecelerateInterpolator(1.5f)
-                if (vX < 0 && currentPage == 0) {
-                    currentPage = 1
-                    favPage.animate().translationX(-pagerWidth.toFloat()).setDuration(260).setInterpolator(swipeInterp).start()
-                    ctrlPage.animate().translationX(0f).setDuration(260).setInterpolator(swipeInterp).start()
-                    dot1.background = makeDotDrawable(dotInactive)
-                    dot2.background = makeDotDrawable(dotActive)
-                } else if (vX > 0 && currentPage == 1) {
-                    currentPage = 0
-                    favPage.animate().translationX(0f).setDuration(260).setInterpolator(swipeInterp).start()
-                    ctrlPage.animate().translationX(pagerWidth.toFloat()).setDuration(260).setInterpolator(swipeInterp).start()
-                    dot1.background = makeDotDrawable(dotActive)
-                    dot2.background = makeDotDrawable(dotInactive)
-                }
-                return true
+        // Quick controls strip — different background, sits above the favorites grid
+        val controlsStrip = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(controlsBg)
+                cornerRadius = dp(16).toFloat()
             }
-        })
-        root.setOnTouchListener { _, event -> gesture.onTouchEvent(event); false }
+            setPadding(dp(6), dp(8), dp(6), dp(8))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(8); marginEnd = dp(8); bottomMargin = dp(6) }
+        }
+
+        val ctrlRow1 = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        ctrlRow1.addView(makeControlTile("Torch", { "⚡" }, tileBg, tileActive,
+            { torchEnabled }, { if (torchEnabled) "On" else "Off" }) { toggleTorch() })
+        ctrlRow1.addView(makeControlTile("Rotate", { "↻" }, tileBg, tileActive,
+            { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }) { toggleAutoRotate() })
+        controlsStrip.addView(ctrlRow1)
+
+        val ctrlRow2 = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(6) }
+        }
+        ctrlRow2.addView(makeControlTile("Brightness", { "☀" }, tileBg, tileActive,
+            { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }) { toggleAutoBrightness() })
+        ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
+            { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
+        controlsStrip.addView(ctrlRow2)
+        root.addView(controlsStrip)
+
+        // Favorites app grid
+        val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(4), dp(8), dp(16))
+        }
+
+        if (pkgs.isEmpty()) {
+            container.addView(TextView(this).apply {
+                text = "No favorites yet.\nOpen the Sidebar app\nto choose your apps."
+                setTextColor(emptyColor)
+                textSize = 13f
+                gravity = Gravity.CENTER
+                setPadding(dp(16), dp(20), dp(16), dp(20))
+            })
+        } else {
+            var row: LinearLayout? = null
+            for ((index, pkg) in pkgs.withIndex()) {
+                if (index % 2 == 0) {
+                    row = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        )
+                    }
+                    container.addView(row)
+                }
+                try {
+                    val info = pm.getApplicationInfo(pkg, 0)
+                    val name = pm.getApplicationLabel(info).toString()
+                    val icon = pm.getApplicationIcon(pkg)
+                    row?.addView(makeAppCell(pkg, name, icon, labelColor, oPrefs.showLabels))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load app info for $pkg", e)
+                    row?.addView(View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
+                    })
+                }
+            }
+            if (pkgs.size % 2 != 0) {
+                row?.addView(View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                })
+            }
+        }
+
+        scroll.addView(container)
+        root.addView(scroll, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val panelGravity = if (prefs.side == "left") Gravity.START or Gravity.CENTER_VERTICAL
                            else Gravity.END or Gravity.CENTER_VERTICAL
-        val params = WindowManager.LayoutParams(
+        wm.addView(root, WindowManager.LayoutParams(
             dp(200), panelHeight,
             overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = panelGravity; x = dp(8) }
+        ).apply { gravity = panelGravity; x = dp(8) })
 
-        wm.addView(root, params)
         panelView = root
         handleView?.visibility = View.INVISIBLE
-        updateStatus()
-        statusHandler.post(statusRunnable)
 
         val slideFrom = if (prefs.side == "left") -dp(216).toFloat() else dp(216).toFloat()
         root.translationX = slideFrom
@@ -481,9 +505,6 @@ class SidebarOverlayService : Service() {
     private fun hidePanel() {
         if (!shown) return
         shown = false
-        statusHandler.removeCallbacks(statusRunnable)
-        ctrlTimeView = null
-        ctrlBattView = null
         val panel = panelView ?: run {
             dismissOverlay?.let { runCatching { wm.removeViewImmediate(it) } }
             dismissOverlay = null
@@ -510,147 +531,7 @@ class SidebarOverlayService : Service() {
             .start()
     }
 
-    // ── Panel pages ───────────────────────────────────────────────────────────
-
-    private fun makeDot(color: Int) = View(this).apply {
-        background = makeDotDrawable(color)
-        layoutParams = LinearLayout.LayoutParams(dp(6), dp(6)).apply {
-            marginStart = dp(3); marginEnd = dp(3)
-        }
-    }
-
-    private fun makeDotDrawable(color: Int) = GradientDrawable().apply {
-        shape = GradientDrawable.OVAL
-        setColor(color)
-    }
-
-    private fun buildFavoritesPage(pkgs: List<String>, prefs: PillPrefs, showLabels: Boolean): ScrollView {
-        val light = prefs.theme == "light"
-        val labelColor = if (light) Color.argb(255, 30, 30, 30) else Color.WHITE
-        val emptyColor = if (light) Color.argb(160, 50, 50, 50) else Color.argb(160, 255, 255, 255)
-        val pm = packageManager
-
-        val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(4), dp(8), dp(16))
-        }
-
-        if (pkgs.isEmpty()) {
-            container.addView(TextView(this).apply {
-                text = "No favorites yet.\nOpen the Sidebar app\nto choose your apps."
-                setTextColor(emptyColor)
-                textSize = 13f
-                gravity = Gravity.CENTER
-                setPadding(dp(16), dp(40), dp(16), dp(40))
-            })
-        } else {
-            var row: LinearLayout? = null
-            for ((index, pkg) in pkgs.withIndex()) {
-                if (index % 2 == 0) {
-                    row = LinearLayout(this).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                        layoutParams = LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                    }
-                    container.addView(row)
-                }
-                try {
-                    val info = pm.getApplicationInfo(pkg, 0)
-                    val name = pm.getApplicationLabel(info).toString()
-                    val icon = pm.getApplicationIcon(pkg)
-                    row?.addView(makeAppCell(pkg, name, icon, labelColor, showLabels))
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to load app info for $pkg", e)
-                    row?.addView(View(this).apply {
-                        layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
-                    })
-                }
-            }
-            if (pkgs.size % 2 != 0) {
-                row?.addView(View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                })
-            }
-        }
-        scroll.addView(container)
-        return scroll
-    }
-
-    private fun buildControlPage(prefs: PillPrefs): LinearLayout {
-        val light = prefs.theme == "light"
-        val tileBg = if (light) Color.argb(200, 200, 200, 210) else Color.argb(200, 40, 40, 60)
-        val tileActive = Color.argb(220, 0, 122, 255)
-        val statusColor = if (light) Color.argb(220, 20, 20, 20) else Color.argb(220, 255, 255, 255)
-
-        val page = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(8), dp(8), dp(16))
-        }
-
-        // Status bar: time (left) + battery (right)
-        val timeView = TextView(this).apply {
-            textSize = 12f
-            setTextColor(statusColor)
-        }
-        val battView = TextView(this).apply {
-            textSize = 12f
-            setTextColor(statusColor)
-        }
-        ctrlTimeView = timeView
-        ctrlBattView = battView
-        page.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(28)
-            ).apply { bottomMargin = dp(4) }
-            addView(timeView, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginStart = dp(4)
-            })
-            addView(battView, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { marginEnd = dp(4) })
-        })
-
-        val row1 = tileRow()
-        row1.addView(makeControlTile("Torch", { "⚡" }, tileBg, tileActive,
-            { torchEnabled }, { if (torchEnabled) "On" else "Off" }) { toggleTorch() })
-        row1.addView(makeControlTile("Do Not Disturb", { "🌙" }, tileBg, tileActive,
-            { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }) { toggleDnd() })
-        page.addView(row1)
-
-        val row2 = tileRow().apply {
-            (layoutParams as LinearLayout.LayoutParams).topMargin = dp(8)
-        }
-        row2.addView(makeControlTile("Auto-rotate", { "↻" }, tileBg, tileActive,
-            { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }) { toggleAutoRotate() })
-        row2.addView(makeControlTile("Auto-bright", { "☀" }, tileBg, tileActive,
-            { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "On" else "Off" }) { toggleAutoBrightness() })
-        page.addView(row2)
-
-        val row3 = tileRow().apply {
-            (layoutParams as LinearLayout.LayoutParams).topMargin = dp(8)
-        }
-        row3.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
-            { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
-        row3.addView(makeControlTile("Sleep", { "⏱" }, tileBg, tileActive,
-            { isScreenTimeoutLong() }, { getScreenTimeoutSubtitle() }) { toggleScreenTimeout() })
-        page.addView(row3)
-
-        return page
-    }
-
-    private fun tileRow() = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-    }
+    // ── Control tile helpers ──────────────────────────────────────────────────
 
     private fun makeControlTile(
         label: String,
@@ -663,15 +544,15 @@ class SidebarOverlayService : Service() {
         val tile = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(0, dp(76), 1f).apply {
-                marginStart = dp(4); marginEnd = dp(4)
+            layoutParams = LinearLayout.LayoutParams(0, dp(60), 1f).apply {
+                marginStart = dp(3); marginEnd = dp(3)
             }
             isClickable = true
             isFocusable = true
         }
 
         val iconTv = TextView(this).apply {
-            textSize = 22f
+            textSize = 20f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
         }
@@ -689,7 +570,7 @@ class SidebarOverlayService : Service() {
         fun update() {
             tile.background = GradientDrawable().apply {
                 setColor(if (getActive()) activeColor else bgColor)
-                cornerRadius = dp(14).toFloat()
+                cornerRadius = dp(12).toFloat()
             }
             iconTv.text = getIcon()
             subtitleTv.text = getSubtitle()
@@ -702,9 +583,11 @@ class SidebarOverlayService : Service() {
         }
         tile.setOnTouchListener { _, event ->
             when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> tile.animate().scaleX(0.90f).scaleY(0.90f).setDuration(80).start()
+                MotionEvent.ACTION_DOWN ->
+                    tile.animate().scaleX(0.90f).scaleY(0.90f).setDuration(80).start()
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
-                    tile.animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(OvershootInterpolator(1.8f)).start()
+                    tile.animate().scaleX(1f).scaleY(1f).setDuration(200)
+                        .setInterpolator(OvershootInterpolator(1.8f)).start()
             }
             false
         }
@@ -719,18 +602,13 @@ class SidebarOverlayService : Service() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(3) }
+            ).apply { topMargin = dp(2) }
         })
         tile.addView(subtitleTv)
         return tile
     }
 
     // ── Control tile state & toggles ──────────────────────────────────────────
-
-    private fun isDndEnabled(): Boolean {
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        return nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
-    }
 
     private fun isAutoRotateEnabled(): Boolean = try {
         Settings.System.getInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION) == 1
@@ -745,18 +623,6 @@ class SidebarOverlayService : Service() {
         val cid = torchCameraId ?: return
         try { cameraManager?.setTorchMode(cid, !torchEnabled) }
         catch (e: Exception) { Log.w(TAG, "Torch toggle failed", e) }
-    }
-
-    private fun toggleDnd() {
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        if (!nm.isNotificationPolicyAccessGranted) {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-                .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
-            return
-        }
-        val new = if (isDndEnabled()) NotificationManager.INTERRUPTION_FILTER_ALL
-                  else NotificationManager.INTERRUPTION_FILTER_PRIORITY
-        nm.setInterruptionFilter(new)
     }
 
     private fun toggleAutoRotate() {
@@ -782,21 +648,21 @@ class SidebarOverlayService : Service() {
         Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, new)
     }
 
-    // ── Ring mode helpers ─────────────────────────────────────────────────────
+    // ── Ringer helpers ────────────────────────────────────────────────────────
 
     private fun getRingerMode(): Int =
         (getSystemService(AUDIO_SERVICE) as AudioManager).ringerMode
 
     private fun getRingerIcon(): String = when (getRingerMode()) {
-        AudioManager.RINGER_MODE_SILENT -> "🔕"
+        AudioManager.RINGER_MODE_SILENT  -> "🔕"
         AudioManager.RINGER_MODE_VIBRATE -> "📳"
-        else -> "🔔"
+        else                             -> "🔔"
     }
 
     private fun getRingerSubtitle(): String = when (getRingerMode()) {
-        AudioManager.RINGER_MODE_SILENT -> "Silent"
+        AudioManager.RINGER_MODE_SILENT  -> "Silent"
         AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
-        else -> "Ring"
+        else                             -> "Ring"
     }
 
     private fun isRingerActive(): Boolean =
@@ -806,51 +672,13 @@ class SidebarOverlayService : Service() {
         val am = getSystemService(AUDIO_SERVICE) as AudioManager
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val next = when (am.ringerMode) {
-            AudioManager.RINGER_MODE_NORMAL -> AudioManager.RINGER_MODE_VIBRATE
+            AudioManager.RINGER_MODE_NORMAL  -> AudioManager.RINGER_MODE_VIBRATE
             AudioManager.RINGER_MODE_VIBRATE ->
                 if (nm.isNotificationPolicyAccessGranted) AudioManager.RINGER_MODE_SILENT
                 else AudioManager.RINGER_MODE_NORMAL
             else -> AudioManager.RINGER_MODE_NORMAL
         }
         try { am.ringerMode = next } catch (e: Exception) { Log.w(TAG, "Ringer toggle failed", e) }
-    }
-
-    // ── Screen timeout helpers ────────────────────────────────────────────────
-
-    private fun isScreenTimeoutLong(): Boolean = try {
-        Settings.System.getInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT) >= 300_000
-    } catch (_: Settings.SettingNotFoundException) { false }
-
-    private fun getScreenTimeoutSubtitle(): String = try {
-        val ms = Settings.System.getInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT)
-        if (ms < 60_000) "${ms / 1000}s" else "${ms / 60_000}min"
-    } catch (_: Settings.SettingNotFoundException) { "?" }
-
-    private fun toggleScreenTimeout() {
-        if (!Settings.System.canWrite(this)) {
-            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
-                Uri.parse("package:$packageName"))
-                .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
-            return
-        }
-        val current = try {
-            Settings.System.getInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT)
-        } catch (_: Settings.SettingNotFoundException) { 30_000 }
-        Settings.System.putInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT,
-            if (current >= 300_000) 30_000 else 1_800_000)
-    }
-
-    // ── Status bar updater ────────────────────────────────────────────────────
-
-    private fun updateStatus() {
-        val timeStr = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-            .format(java.util.Date())
-        ctrlTimeView?.text = timeStr
-
-        val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        ctrlBattView?.text = if (level >= 0 && scale > 0) "${level * 100 / scale}%" else ""
     }
 
     // ── App cell ──────────────────────────────────────────────────────────────
@@ -869,9 +697,11 @@ class SidebarOverlayService : Service() {
             setOnClickListener { launch(pkg) }
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> animate().scaleX(0.85f).scaleY(0.85f).setDuration(80).start()
+                    MotionEvent.ACTION_DOWN ->
+                        animate().scaleX(0.85f).scaleY(0.85f).setDuration(80).start()
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
-                        animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(OvershootInterpolator(2f)).start()
+                        animate().scaleX(1f).scaleY(1f).setDuration(200)
+                            .setInterpolator(OvershootInterpolator(2f)).start()
                 }
                 false
             }
@@ -934,7 +764,7 @@ class SidebarOverlayService : Service() {
         }
     }
 
-    // ── Notification / helpers ────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun isSystemFullscreen(): Boolean = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -976,9 +806,9 @@ class SidebarOverlayService : Service() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = when {
                 highlighted && theme == "light" -> Color.argb(230, 160, 160, 160)
-                highlighted -> Color.argb(230, 110, 110, 255)
-                theme == "light" -> Color.argb(210, 220, 220, 220)
-                else -> Color.argb(210, 60, 60, 190)
+                highlighted                     -> Color.argb(230, 110, 110, 255)
+                theme == "light"                -> Color.argb(210, 220, 220, 220)
+                else                            -> Color.argb(210, 60, 60, 190)
             }
         }
         private val rect = RectF()
