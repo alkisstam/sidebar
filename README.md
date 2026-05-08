@@ -55,6 +55,6 @@ android/
 
 ## To-do
 
-- [ ] Change tabs in the main app by swiping
+- [✓] Change tabs in the main app by swiping
 - [ ] Change from favorite apps to control center by swiping in the floating panel
 - [ ] Add a toggle in settings to enable or disable the control center
