@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   ActivityIndicator,
   Alert,
   AppState,
@@ -51,6 +52,18 @@ export default function Index() {
   const activeTabRef = useRef<Tab>("handle");
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  const changeTab = useCallback((tab: Tab) => {
+    const tabOrder: Tab[] = ["handle", "behavior", "control", "apps"];
+    const fromIdx = tabOrder.indexOf(activeTabRef.current);
+    const toIdx = tabOrder.indexOf(tab);
+    if (fromIdx === toIdx) return;
+    slideAnim.setValue(toIdx > fromIdx ? 350 : -350);
+    setActiveTab(tab);
+    Animated.timing(slideAnim, { toValue: 0, duration: 220, useNativeDriver: true }).start();
+  }, [slideAnim]);
+
   const swipeGesture = useMemo(() =>
     Gesture.Pan()
       .runOnJS(true)
@@ -61,10 +74,10 @@ export default function Index() {
         const isHorizontal = Math.abs(e.translationX) > Math.abs(e.translationY) * 1.5;
         if (!isHorizontal || Math.abs(e.translationX) < 40) return;
         const idx = tabOrder.indexOf(activeTabRef.current);
-        if (e.translationX < 0 && idx < tabOrder.length - 1) setActiveTab(tabOrder[idx + 1]);
-        else if (e.translationX > 0 && idx > 0) setActiveTab(tabOrder[idx - 1]);
+        if (e.translationX < 0 && idx < tabOrder.length - 1) changeTab(tabOrder[idx + 1]);
+        else if (e.translationX > 0 && idx > 0) changeTab(tabOrder[idx - 1]);
       }),
-    []
+    [changeTab]
   );
 
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
@@ -269,7 +282,7 @@ export default function Index() {
       </View>
 
       <GestureDetector gesture={swipeGesture}>
-      <View style={{ flex: 1 }}>
+      <Animated.View style={{ flex: 1, transform: [{ translateX: slideAnim }] }}>
 
       {/* Handle tab */}
       <View style={{ display: activeTab === "handle" ? "flex" : "none", flex: 1 }}>
@@ -493,23 +506,23 @@ export default function Index() {
         </View>
       </View>}
 
-      </View>
+      </Animated.View>
       </GestureDetector>
 
       {/* M3 Navigation Bar */}
       <View style={s.tabBar}>
         {TABS.map(tab => (
-          <Pressable key={tab.id} style={s.tabItem} onPress={() => setActiveTab(tab.id)}>
+          <Pressable key={tab.id} style={s.tabItem} onPress={() => changeTab(tab.id)}>
             <View style={[s.navIndicator, activeTab === tab.id && s.navIndicatorActive]}>
               <Ionicons
                 name={tab.icon as any}
-                size={24}
+                size={22}
                 color={activeTab === tab.id ? colors.onPrimaryContainer : colors.subtext}
               />
+              <Text style={[s.tabLabel, activeTab === tab.id && s.tabLabelActive]}>
+                {tab.label}
+              </Text>
             </View>
-            <Text style={[s.tabLabel, activeTab === tab.id && s.tabLabelActive]}>
-              {tab.label}
-            </Text>
           </Pressable>
         ))}
       </View>
@@ -544,7 +557,7 @@ function SliderRow({
             onValueChange={onChange}
             minimumTrackTintColor="transparent"
             maximumTrackTintColor="transparent"
-            thumbTintColor={colors.primary}
+            thumbTintColor="#FFFFFF"
           />
         </View>
         {rightEdge && <Text style={s.sliderEdge}>{rightEdge}</Text>}
@@ -627,14 +640,14 @@ function styles(colors: ReturnType<typeof makeColors>) {
 
     sliderWrap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
     sliderEdge: { fontSize: 12, color: colors.subtext },
-    sliderTrackWrap: { flex: 1, height: 40, justifyContent: "center" },
+    sliderTrackWrap: { flex: 1, height: 44, justifyContent: "center" },
     sliderTrackBg: {
       position: "absolute", left: 0, right: 0,
-      height: 4, borderRadius: 2, backgroundColor: colors.separator,
+      height: 28, borderRadius: 14, backgroundColor: colors.separator,
     },
     sliderTrackFill: {
       position: "absolute", left: 0,
-      height: 4, borderRadius: 2, backgroundColor: colors.primary,
+      height: 28, borderRadius: 14, backgroundColor: colors.primary,
     },
 
     permCount: {
@@ -730,13 +743,14 @@ function styles(colors: ReturnType<typeof makeColors>) {
       paddingBottom: 14,
       paddingTop: 8,
     },
-    tabItem: { flex: 1, alignItems: "center", gap: 4 },
+    tabItem: { flex: 1, alignItems: "center" },
     navIndicator: {
-      width: 64, height: 32, borderRadius: 16,
+      width: 72, height: 52, borderRadius: 26,
       alignItems: "center", justifyContent: "center",
+      flexDirection: "column", gap: 2,
     },
     navIndicatorActive: { backgroundColor: colors.primaryContainer },
-    tabLabel: { fontSize: 12, color: colors.subtext, letterSpacing: 0.4 },
-    tabLabelActive: { color: colors.primary, fontWeight: "500" },
+    tabLabel: { fontSize: 11, color: colors.subtext, letterSpacing: 0.4 },
+    tabLabelActive: { color: colors.onPrimaryContainer, fontWeight: "500" },
   });
 }
