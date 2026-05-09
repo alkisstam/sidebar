@@ -42,6 +42,7 @@ const DEFAULT_PILL: PillSettings = {
 };
 const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,
+  quickControlsEnabled: true, showTorch: true, showAutoRotate: true, showAutoBrightness: true, showRingerMode: true,
 };
 
 export default function Index() {
@@ -397,6 +398,57 @@ export default function Index() {
       {/* Control tab */}
       <View style={{ display: activeTab === "control" ? "flex" : "none", flex: 1 }}>
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+          <View style={s.section}>
+            <View style={s.row}>
+              <Text style={[s.rowLabel, { flex: 1 }]}>Quick controls</Text>
+              <Switch
+                value={overlay.quickControlsEnabled}
+                onValueChange={v => setOverlay(p => ({ ...p, quickControlsEnabled: v }))}
+                trackColor={{ true: colors.tint }}
+              />
+            </View>
+            {overlay.quickControlsEnabled && <>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Torch</Text>
+                <Switch
+                  value={overlay.showTorch}
+                  onValueChange={v => setOverlay(p => ({ ...p, showTorch: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Auto-rotate</Text>
+                <Switch
+                  value={overlay.showAutoRotate}
+                  onValueChange={v => setOverlay(p => ({ ...p, showAutoRotate: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Auto-brightness</Text>
+                <Switch
+                  value={overlay.showAutoBrightness}
+                  onValueChange={v => setOverlay(p => ({ ...p, showAutoBrightness: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Ringer mode</Text>
+                <Switch
+                  value={overlay.showRingerMode}
+                  onValueChange={v => setOverlay(p => ({ ...p, showRingerMode: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+            </>}
+          </View>
+          <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
+            <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save"}</Text>
+          </Pressable>
           {(() => {
             const granted = [permissionGranted, dndPerm, writePerm].filter(Boolean).length;
             return (

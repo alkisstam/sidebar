@@ -259,7 +259,11 @@ class SidebarOverlayService : Service() {
 
     private fun vibrate() {
         if (!vibrationEnabled) return
-        val vib = getSystemService(VIBRATOR_SERVICE) as? Vibrator ?: return
+        val vib = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            getSystemService(VibratorManager::class.java)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION") getSystemService(VIBRATOR_SERVICE) as? Vibrator
+        } ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vib.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
         } else {
@@ -326,14 +330,22 @@ class SidebarOverlayService : Service() {
         val pm = packageManager
         val light = prefs.theme == "light"
 
+        val qcPrefs = getSharedPreferences("sidebar_prefs", MODE_PRIVATE)
+        val quickControlsEnabled = qcPrefs.getBoolean("quick_controls_enabled", true)
+        val showTorch = qcPrefs.getBoolean("show_torch", true)
+        val showAutoRotate = qcPrefs.getBoolean("show_auto_rotate", true)
+        val showAutoBrightness = qcPrefs.getBoolean("show_auto_brightness", true)
+        val showRingerMode = qcPrefs.getBoolean("show_ringer_mode", true)
+        val qcAny = quickControlsEnabled && (showTorch || showAutoRotate || showAutoBrightness || showRingerMode)
+
         val screenHeight = resources.displayMetrics.heightPixels
         val maxPanelHeight = (screenHeight * 0.72).toInt()
         val rows = if (pkgs.isEmpty()) 1 else (pkgs.size + 1) / 2
         val rowH = if (oPrefs.showLabels) dp(82) else dp(68)
         // Controls strip: top+bottom padding + 2 tile rows + gap between rows
-        val controlsH = dp(8) + dp(60) + dp(6) + dp(60) + dp(8)
+        val controlsH = if (qcAny) dp(8) + dp(60) + dp(6) + dp(60) + dp(8) + dp(6) else 0
         val appsH = dp(4) + rows * rowH + dp(16)
-        val panelHeight = (dp(24) + controlsH + dp(6) + appsH).coerceAtMost(maxPanelHeight)
+        val panelHeight = (dp(24) + controlsH + appsH).coerceAtMost(maxPanelHeight)
 
         val overlay = View(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
@@ -401,29 +413,31 @@ class SidebarOverlayService : Service() {
             ).apply { marginStart = dp(8); marginEnd = dp(8); bottomMargin = dp(6) }
         }
 
-        val ctrlRow1 = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
-        ctrlRow1.addView(makeControlTile("Torch", { "⚡" }, tileBg, tileActive,
-            { torchEnabled }, { if (torchEnabled) "On" else "Off" }) { toggleTorch() })
-        ctrlRow1.addView(makeControlTile("Rotate", { "↻" }, tileBg, tileActive,
-            { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }) { toggleAutoRotate() })
-        controlsStrip.addView(ctrlRow1)
+        if (quickControlsEnabled) {
+            val ctrlRow1 = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            }
+            if (showTorch) ctrlRow1.addView(makeControlTile("Torch", { "⚡" }, tileBg, tileActive,
+                { torchEnabled }, { if (torchEnabled) "On" else "Off" }) { toggleTorch() })
+            if (showAutoRotate) ctrlRow1.addView(makeControlTile("Rotate", { "↻" }, tileBg, tileActive,
+                { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }) { toggleAutoRotate() })
+            if (ctrlRow1.childCount > 0) controlsStrip.addView(ctrlRow1)
 
-        val ctrlRow2 = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(6) }
+            val ctrlRow2 = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(6) }
+            }
+            if (showAutoBrightness) ctrlRow2.addView(makeControlTile("Brightness", { "☀" }, tileBg, tileActive,
+                { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }) { toggleAutoBrightness() })
+            if (showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
+                { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
+            if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
         }
-        ctrlRow2.addView(makeControlTile("Brightness", { "☀" }, tileBg, tileActive,
-            { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }) { toggleAutoBrightness() })
-        ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
-            { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
-        controlsStrip.addView(ctrlRow2)
-        root.addView(controlsStrip)
+        if (qcAny) root.addView(controlsStrip)
 
         // Favorites app grid
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }

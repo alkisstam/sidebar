@@ -22,6 +22,11 @@ export interface OverlaySettings {
   showLabels: boolean;
   vibration: boolean;
   sensitivity: number;
+  quickControlsEnabled: boolean;
+  showTorch: boolean;
+  showAutoRotate: boolean;
+  showAutoBrightness: boolean;
+  showRingerMode: boolean;
 }
 
 export default {

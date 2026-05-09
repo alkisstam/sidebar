@@ -165,6 +165,11 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putBoolean("showLabels", prefs.getBoolean("show_labels", true))
         map.putBoolean("vibration", prefs.getBoolean("vibration", true))
         map.putInt("sensitivity", prefs.getInt("swipe_sensitivity", 16))
+        map.putBoolean("quickControlsEnabled", prefs.getBoolean("quick_controls_enabled", true))
+        map.putBoolean("showTorch", prefs.getBoolean("show_torch", true))
+        map.putBoolean("showAutoRotate", prefs.getBoolean("show_auto_rotate", true))
+        map.putBoolean("showAutoBrightness", prefs.getBoolean("show_auto_brightness", true))
+        map.putBoolean("showRingerMode", prefs.getBoolean("show_ringer_mode", true))
         promise.resolve(map)
     }
 
@@ -175,6 +180,11 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("showLabels")) prefs.putBoolean("show_labels", settings.getBoolean("showLabels"))
         if (settings.hasKey("vibration")) prefs.putBoolean("vibration", settings.getBoolean("vibration"))
         if (settings.hasKey("sensitivity")) prefs.putInt("swipe_sensitivity", settings.getInt("sensitivity"))
+        if (settings.hasKey("quickControlsEnabled")) prefs.putBoolean("quick_controls_enabled", settings.getBoolean("quickControlsEnabled"))
+        if (settings.hasKey("showTorch")) prefs.putBoolean("show_torch", settings.getBoolean("showTorch"))
+        if (settings.hasKey("showAutoRotate")) prefs.putBoolean("show_auto_rotate", settings.getBoolean("showAutoRotate"))
+        if (settings.hasKey("showAutoBrightness")) prefs.putBoolean("show_auto_brightness", settings.getBoolean("showAutoBrightness"))
+        if (settings.hasKey("showRingerMode")) prefs.putBoolean("show_ringer_mode", settings.getBoolean("showRingerMode"))
         prefs.apply()
         val intent = Intent(reactContext, SidebarOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
