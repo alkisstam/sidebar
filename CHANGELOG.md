@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.4.0] - 2026-05-09
+
+### Added
+
+**Handle tab — panel color picker**
+- New Color row below Theme: 7 preset swatches plus an Auto split-circle (follows theme) and a custom hex input field
+- Selected swatch highlighted with a 2.5 dp primary-color ring
+- Custom option shows a pencil-icon swatch; tapping toggles an inline `#RRGGBB` input with an Apply button
+- Color stored as `panel_color` in SharedPreferences and applied with 248 alpha to both the floating panel and All Apps drawer
+
+**Floating panel — All Apps drawer**
+- "All Apps" button at the bottom of the panel opens a centered overlay (90 % × 82 % of screen) with a 4-column alphabetical grid of every installed app
+- Live search bar at the top filters the grid as you type; keyboard is dismissed automatically on close
+- "Edit" button beside "All Apps" writes a `launch_tab` preference and opens MainActivity on the Apps tab
+- Drawer uses the same panel color and effective-luminance color tokens as the main panel
+
+**Control tab — quick-controls toggles**
+- Master switch enables or disables the entire quick-controls strip in the floating panel
+- Four individual switches (Torch, Auto-rotate, Auto-brightness, Ringer mode) shown when the master is on
+- Rows with all controls disabled are omitted from the panel entirely to avoid empty space
+
+### Changed
+
+**Panel color — adaptive content colors**
+- `effectiveLight` is derived from the HSV brightness of the resolved panel color (V > 0.5 = light) rather than the theme setting
+- All panel content tokens (tile background, active tile, label color, drag indicator, empty state) switch between light and dark variants based on `effectiveLight`, so dark custom colors get light text and vice versa
+- Quick-controls strip background (`controlsBg`) is derived from the panel color via a +0.15 / −0.12 HSV brightness shift for a tonal distinction
+
+**Tab slide animation**
+- Replaced single-phase 220 ms linear slide with a two-phase animation: 80 ms ease-in exit followed by 160 ms ease-out entry
+- `setActiveTab` is called between phases so the content switch happens while both views are off-screen
+
+### Fixed
+
+**Slider fill alignment**
+- Fill width now computed as `thumbDiameter + ratio × (trackWidth − thumbDiameter)` using an `onLayout` measurement, so the thumb always sits visually inside the filled end of the track rather than at the boundary between filled and unfilled
+
 ## [1.3.0] - 2026-05-08
 
 ### Changed
