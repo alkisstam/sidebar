@@ -15,6 +15,10 @@ An Android overlay sidebar for quick access to favorite apps. A pull-tab handle 
 - Behavior tab: auto-hide in fullscreen, app labels, vibration feedback, swipe sensitivity
 - Control tab: master and per-tile quick-controls toggles; overlay, Do Not Disturb, and system-settings permission management
 
+## Galery
+
+![Screenshot](assets/images/floating-panel.jpg)
+
 ## Installation
 
 Download the latest APK from the [Releases](https://github.com/alkisstam/sidebar/releases) page and sideload it onto your Android device. Enable "Install from unknown sources" in your device settings if prompted.
