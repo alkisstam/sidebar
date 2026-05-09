@@ -56,22 +56,24 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
 
     private fun cachedIcon(pm: PackageManager, app: ResolveInfo): String {
         val pkg = app.activityInfo.packageName
-        return iconCache.get(pkg) ?: drawableToBase64(app.loadIcon(pm)).also { iconCache.put(pkg, it) }
+        val lastUpdate = try { pm.getPackageInfo(pkg, 0).lastUpdateTime } catch (_: Exception) { 0L }
+        val key = "$pkg@$lastUpdate"
+        return iconCache.get(key) ?: drawableToBase64(app.loadIcon(pm)).also { iconCache.put(key, it) }
     }
 
     @ReactMethod
     fun saveFavorites(packages: ReadableArray, promise: Promise) {
         val arr = JSONArray()
         for (i in 0 until packages.size()) arr.put(packages.getString(i))
-        reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
-            .edit().putString("favorites", arr.toString()).apply()
+        reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
+            .edit().putString(Prefs.FAVORITES, arr.toString()).apply()
         promise.resolve(null)
     }
 
     @ReactMethod
     fun getFavorites(promise: Promise) {
-        val json = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
-            .getString("favorites", "[]")
+        val json = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
+            .getString(Prefs.FAVORITES, "[]")
         val arr = WritableNativeArray()
         try {
             val jArr = JSONArray(json)
@@ -99,8 +101,8 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun startService(promise: Promise) {
-        reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
-            .edit().putBoolean("service_enabled", true).apply()
+        reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean(Prefs.SERVICE_ENABLED, true).apply()
         val intent = Intent(reactContext, SidebarOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             reactContext.startForegroundService(intent)
@@ -112,29 +114,29 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun stopService(promise: Promise) {
-        reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
-            .edit().putBoolean("service_enabled", false).apply()
+        reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean(Prefs.SERVICE_ENABLED, false).apply()
         reactContext.stopService(Intent(reactContext, SidebarOverlayService::class.java))
         promise.resolve(null)
     }
 
     @ReactMethod
     fun isServiceEnabled(promise: Promise) {
-        val enabled = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
-            .getBoolean("service_enabled", false)
+        val enabled = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
+            .getBoolean(Prefs.SERVICE_ENABLED, false)
         promise.resolve(enabled)
     }
 
     @ReactMethod
     fun savePillSettings(settings: ReadableMap, promise: Promise) {
-        val prefs = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE).edit()
-        if (settings.hasKey("height")) prefs.putInt("pill_height", settings.getInt("height"))
-        if (settings.hasKey("width")) prefs.putInt("pill_width", settings.getInt("width"))
-        if (settings.hasKey("position")) prefs.putFloat("pill_position", settings.getDouble("position").toFloat())
-        if (settings.hasKey("side")) prefs.putString("pill_side", settings.getString("side"))
-        if (settings.hasKey("opacity")) prefs.putFloat("pill_opacity", settings.getDouble("opacity").toFloat())
-        if (settings.hasKey("theme")) prefs.putString("pill_theme", settings.getString("theme"))
-        if (settings.hasKey("panelColor")) prefs.putString("panel_color", settings.getString("panelColor") ?: "")
+        val prefs = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE).edit()
+        if (settings.hasKey("height")) prefs.putInt(Prefs.PILL_HEIGHT, settings.getInt("height"))
+        if (settings.hasKey("width")) prefs.putInt(Prefs.PILL_WIDTH, settings.getInt("width"))
+        if (settings.hasKey("position")) prefs.putFloat(Prefs.PILL_POSITION, settings.getDouble("position").toFloat())
+        if (settings.hasKey("side")) prefs.putString(Prefs.PILL_SIDE, settings.getString("side"))
+        if (settings.hasKey("opacity")) prefs.putFloat(Prefs.PILL_OPACITY, settings.getDouble("opacity").toFloat())
+        if (settings.hasKey("theme")) prefs.putString(Prefs.PILL_THEME, settings.getString("theme"))
+        if (settings.hasKey("panelColor")) prefs.putString(Prefs.PANEL_COLOR, settings.getString("panelColor") ?: "")
         prefs.apply()
         val intent = Intent(reactContext, SidebarOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -147,46 +149,46 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun getPillSettings(promise: Promise) {
-        val prefs = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
+        val prefs = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
         val map = WritableNativeMap()
-        map.putInt("height", prefs.getInt("pill_height", 80))
-        map.putInt("width", prefs.getInt("pill_width", 36))
-        map.putDouble("position", prefs.getFloat("pill_position", 0.5f).toDouble())
-        map.putString("side", prefs.getString("pill_side", "right") ?: "right")
-        map.putDouble("opacity", prefs.getFloat("pill_opacity", 1.0f).toDouble())
-        map.putString("theme", prefs.getString("pill_theme", "dark") ?: "dark")
-        map.putString("panelColor", prefs.getString("panel_color", "") ?: "")
+        map.putInt("height", prefs.getInt(Prefs.PILL_HEIGHT, 80))
+        map.putInt("width", prefs.getInt(Prefs.PILL_WIDTH, 36))
+        map.putDouble("position", prefs.getFloat(Prefs.PILL_POSITION, 0.5f).toDouble())
+        map.putString("side", prefs.getString(Prefs.PILL_SIDE, "right") ?: "right")
+        map.putDouble("opacity", prefs.getFloat(Prefs.PILL_OPACITY, 1.0f).toDouble())
+        map.putString("theme", prefs.getString(Prefs.PILL_THEME, "dark") ?: "dark")
+        map.putString("panelColor", prefs.getString(Prefs.PANEL_COLOR, "") ?: "")
         promise.resolve(map)
     }
 
     @ReactMethod
     fun getOverlaySettings(promise: Promise) {
-        val prefs = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
+        val prefs = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
         val map = WritableNativeMap()
-        map.putBoolean("autoHideFullscreen", prefs.getBoolean("auto_hide_fullscreen", false))
-        map.putBoolean("showLabels", prefs.getBoolean("show_labels", true))
-        map.putBoolean("vibration", prefs.getBoolean("vibration", true))
-        map.putInt("sensitivity", prefs.getInt("swipe_sensitivity", 16))
-        map.putBoolean("quickControlsEnabled", prefs.getBoolean("quick_controls_enabled", true))
-        map.putBoolean("showTorch", prefs.getBoolean("show_torch", true))
-        map.putBoolean("showAutoRotate", prefs.getBoolean("show_auto_rotate", true))
-        map.putBoolean("showAutoBrightness", prefs.getBoolean("show_auto_brightness", true))
-        map.putBoolean("showRingerMode", prefs.getBoolean("show_ringer_mode", true))
+        map.putBoolean("autoHideFullscreen", prefs.getBoolean(Prefs.AUTO_HIDE_FULLSCREEN, false))
+        map.putBoolean("showLabels", prefs.getBoolean(Prefs.SHOW_LABELS, true))
+        map.putBoolean("vibration", prefs.getBoolean(Prefs.VIBRATION, true))
+        map.putInt("sensitivity", prefs.getInt(Prefs.SWIPE_SENSITIVITY, 16))
+        map.putBoolean("quickControlsEnabled", prefs.getBoolean(Prefs.QUICK_CONTROLS_ENABLED, true))
+        map.putBoolean("showTorch", prefs.getBoolean(Prefs.SHOW_TORCH, true))
+        map.putBoolean("showAutoRotate", prefs.getBoolean(Prefs.SHOW_AUTO_ROTATE, true))
+        map.putBoolean("showAutoBrightness", prefs.getBoolean(Prefs.SHOW_AUTO_BRIGHTNESS, true))
+        map.putBoolean("showRingerMode", prefs.getBoolean(Prefs.SHOW_RINGER_MODE, true))
         promise.resolve(map)
     }
 
     @ReactMethod
     fun saveOverlaySettings(settings: ReadableMap, promise: Promise) {
-        val prefs = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE).edit()
-        if (settings.hasKey("autoHideFullscreen")) prefs.putBoolean("auto_hide_fullscreen", settings.getBoolean("autoHideFullscreen"))
-        if (settings.hasKey("showLabels")) prefs.putBoolean("show_labels", settings.getBoolean("showLabels"))
-        if (settings.hasKey("vibration")) prefs.putBoolean("vibration", settings.getBoolean("vibration"))
-        if (settings.hasKey("sensitivity")) prefs.putInt("swipe_sensitivity", settings.getInt("sensitivity"))
-        if (settings.hasKey("quickControlsEnabled")) prefs.putBoolean("quick_controls_enabled", settings.getBoolean("quickControlsEnabled"))
-        if (settings.hasKey("showTorch")) prefs.putBoolean("show_torch", settings.getBoolean("showTorch"))
-        if (settings.hasKey("showAutoRotate")) prefs.putBoolean("show_auto_rotate", settings.getBoolean("showAutoRotate"))
-        if (settings.hasKey("showAutoBrightness")) prefs.putBoolean("show_auto_brightness", settings.getBoolean("showAutoBrightness"))
-        if (settings.hasKey("showRingerMode")) prefs.putBoolean("show_ringer_mode", settings.getBoolean("showRingerMode"))
+        val prefs = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE).edit()
+        if (settings.hasKey("autoHideFullscreen")) prefs.putBoolean(Prefs.AUTO_HIDE_FULLSCREEN, settings.getBoolean("autoHideFullscreen"))
+        if (settings.hasKey("showLabels")) prefs.putBoolean(Prefs.SHOW_LABELS, settings.getBoolean("showLabels"))
+        if (settings.hasKey("vibration")) prefs.putBoolean(Prefs.VIBRATION, settings.getBoolean("vibration"))
+        if (settings.hasKey("sensitivity")) prefs.putInt(Prefs.SWIPE_SENSITIVITY, settings.getInt("sensitivity"))
+        if (settings.hasKey("quickControlsEnabled")) prefs.putBoolean(Prefs.QUICK_CONTROLS_ENABLED, settings.getBoolean("quickControlsEnabled"))
+        if (settings.hasKey("showTorch")) prefs.putBoolean(Prefs.SHOW_TORCH, settings.getBoolean("showTorch"))
+        if (settings.hasKey("showAutoRotate")) prefs.putBoolean(Prefs.SHOW_AUTO_ROTATE, settings.getBoolean("showAutoRotate"))
+        if (settings.hasKey("showAutoBrightness")) prefs.putBoolean(Prefs.SHOW_AUTO_BRIGHTNESS, settings.getBoolean("showAutoBrightness"))
+        if (settings.hasKey("showRingerMode")) prefs.putBoolean(Prefs.SHOW_RINGER_MODE, settings.getBoolean("showRingerMode"))
         prefs.apply()
         val intent = Intent(reactContext, SidebarOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -199,9 +201,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun getLaunchTab(promise: Promise) {
-        val prefs = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
-        val tab = prefs.getString("launch_tab", null)
-        if (tab != null) prefs.edit().remove("launch_tab").apply()
+        val prefs = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
+        val tab = prefs.getString(Prefs.LAUNCH_TAB, null)
+        if (tab != null) prefs.edit().remove(Prefs.LAUNCH_TAB).apply()
         promise.resolve(tab)
     }
 

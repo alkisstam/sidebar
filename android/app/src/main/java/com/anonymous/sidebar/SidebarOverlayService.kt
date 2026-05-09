@@ -23,6 +23,7 @@ import android.view.animation.OvershootInterpolator
 import android.widget.*
 import androidx.core.app.NotificationCompat
 import org.json.JSONArray
+import java.util.concurrent.Executors
 
 class SidebarOverlayService : Service() {
 
@@ -39,6 +40,8 @@ class SidebarOverlayService : Service() {
     private var shown = false
     private var dragState = DragState.IDLE
     private var vibrationEnabled = true
+
+    private val appLoadExecutor = Executors.newSingleThreadExecutor()
 
     // Fullscreen detection — only active when auto-hide-fullscreen pref is on.
     // 2 s interval is plenty; tighter polling prevents deep-sleep unnecessarily.
@@ -75,8 +78,8 @@ class SidebarOverlayService : Service() {
                 if (handleView?.windowToken == null) {
                     addHandle()
                 } else {
-                    val autoHide = getSharedPreferences("sidebar_prefs", MODE_PRIVATE)
-                        .getBoolean("auto_hide_fullscreen", false)
+                    val autoHide = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
+                        .getBoolean(Prefs.AUTO_HIDE_FULLSCREEN, false)
                     if (autoHide) {
                         fsHandler.removeCallbacks(fsRunnable)
                         fsHandler.post(fsRunnable)
@@ -133,6 +136,7 @@ class SidebarOverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         fsHandler.removeCallbacks(fsRunnable)
+        appLoadExecutor.shutdown()
         runCatching { unregisterReceiver(screenReceiver) }
         torchCameraId?.let { runCatching { cameraManager?.unregisterTorchCallback(torchCallback) } }
         Handler(Looper.getMainLooper()).post {
@@ -168,18 +172,23 @@ class SidebarOverlayService : Service() {
         val autoHideFullscreen: Boolean,
         val showLabels: Boolean,
         val vibration: Boolean,
-        val sensitivity: Int
+        val sensitivity: Int,
+        val quickControlsEnabled: Boolean,
+        val showTorch: Boolean,
+        val showAutoRotate: Boolean,
+        val showAutoBrightness: Boolean,
+        val showRingerMode: Boolean
     )
 
     private fun pillPrefs(): PillPrefs {
-        val p = getSharedPreferences("sidebar_prefs", MODE_PRIVATE)
+        val p = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
         return PillPrefs(
-            p.getInt("pill_height", 80), p.getInt("pill_width", 36),
-            p.getFloat("pill_position", 0.5f),
-            p.getString("pill_side", "right") ?: "right",
-            p.getFloat("pill_opacity", 1.0f),
-            p.getString("pill_theme", "dark") ?: "dark",
-            p.getString("panel_color", "") ?: ""
+            p.getInt(Prefs.PILL_HEIGHT, 80), p.getInt(Prefs.PILL_WIDTH, 36),
+            p.getFloat(Prefs.PILL_POSITION, 0.5f),
+            p.getString(Prefs.PILL_SIDE, "right") ?: "right",
+            p.getFloat(Prefs.PILL_OPACITY, 1.0f),
+            p.getString(Prefs.PILL_THEME, "dark") ?: "dark",
+            p.getString(Prefs.PANEL_COLOR, "") ?: ""
         )
     }
 
@@ -203,12 +212,17 @@ class SidebarOverlayService : Service() {
     }
 
     private fun overlayPrefs(): OverlayPrefs {
-        val p = getSharedPreferences("sidebar_prefs", MODE_PRIVATE)
+        val p = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
         return OverlayPrefs(
-            p.getBoolean("auto_hide_fullscreen", false),
-            p.getBoolean("show_labels", true),
-            p.getBoolean("vibration", true),
-            p.getInt("swipe_sensitivity", 16)
+            p.getBoolean(Prefs.AUTO_HIDE_FULLSCREEN, false),
+            p.getBoolean(Prefs.SHOW_LABELS, true),
+            p.getBoolean(Prefs.VIBRATION, true),
+            p.getInt(Prefs.SWIPE_SENSITIVITY, 16),
+            p.getBoolean(Prefs.QUICK_CONTROLS_ENABLED, true),
+            p.getBoolean(Prefs.SHOW_TORCH, true),
+            p.getBoolean(Prefs.SHOW_AUTO_ROTATE, true),
+            p.getBoolean(Prefs.SHOW_AUTO_BRIGHTNESS, true),
+            p.getBoolean(Prefs.SHOW_RINGER_MODE, true)
         )
     }
 
@@ -323,8 +337,8 @@ class SidebarOverlayService : Service() {
                     val params = handle.layoutParams as WindowManager.LayoutParams
                     val screenHeight = resources.displayMetrics.heightPixels
                     val newPos = ((params.y + params.height / 2f) / screenHeight).coerceIn(0.05f, 0.95f)
-                    getSharedPreferences("sidebar_prefs", MODE_PRIVATE)
-                        .edit().putFloat("pill_position", newPos).apply()
+                    getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
+                        .edit().putFloat(Prefs.PILL_POSITION, newPos).apply()
                     exitDragMode()
                     true
                 }
@@ -356,13 +370,8 @@ class SidebarOverlayService : Service() {
         val pm = packageManager
         val light = prefs.theme == "light"
 
-        val qcPrefs = getSharedPreferences("sidebar_prefs", MODE_PRIVATE)
-        val quickControlsEnabled = qcPrefs.getBoolean("quick_controls_enabled", true)
-        val showTorch = qcPrefs.getBoolean("show_torch", true)
-        val showAutoRotate = qcPrefs.getBoolean("show_auto_rotate", true)
-        val showAutoBrightness = qcPrefs.getBoolean("show_auto_brightness", true)
-        val showRingerMode = qcPrefs.getBoolean("show_ringer_mode", true)
-        val qcAny = quickControlsEnabled && (showTorch || showAutoRotate || showAutoBrightness || showRingerMode)
+        val qcAny = oPrefs.quickControlsEnabled &&
+            (oPrefs.showTorch || oPrefs.showAutoRotate || oPrefs.showAutoBrightness || oPrefs.showRingerMode)
 
         val screenHeight = resources.displayMetrics.heightPixels
         val maxPanelHeight = (screenHeight * 0.72).toInt()
@@ -443,15 +452,15 @@ class SidebarOverlayService : Service() {
             ).apply { marginStart = dp(8); marginEnd = dp(8); bottomMargin = dp(6) }
         }
 
-        if (quickControlsEnabled) {
+        if (oPrefs.quickControlsEnabled) {
             val ctrlRow1 = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             }
-            if (showTorch) ctrlRow1.addView(makeControlTile("Torch", { "⚡" }, tileBg, tileActive,
+            if (oPrefs.showTorch) ctrlRow1.addView(makeControlTile("Torch", { "⚡" }, tileBg, tileActive,
                 { torchEnabled }, { if (torchEnabled) "On" else "Off" }) { toggleTorch() })
-            if (showAutoRotate) ctrlRow1.addView(makeControlTile("Rotate", { "↻" }, tileBg, tileActive,
+            if (oPrefs.showAutoRotate) ctrlRow1.addView(makeControlTile("Rotate", { "↻" }, tileBg, tileActive,
                 { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }) { toggleAutoRotate() })
             if (ctrlRow1.childCount > 0) controlsStrip.addView(ctrlRow1)
 
@@ -461,9 +470,9 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(6) }
             }
-            if (showAutoBrightness) ctrlRow2.addView(makeControlTile("Brightness", { "☀" }, tileBg, tileActive,
+            if (oPrefs.showAutoBrightness) ctrlRow2.addView(makeControlTile("Brightness", { "☀" }, tileBg, tileActive,
                 { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }) { toggleAutoBrightness() })
-            if (showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
+            if (oPrefs.showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
                 { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
         }
@@ -556,7 +565,7 @@ class SidebarOverlayService : Service() {
             isClickable = true; isFocusable = true
             setOnClickListener {
                 hidePanel()
-                getSharedPreferences("sidebar_prefs", MODE_PRIVATE).edit().putString("launch_tab", "apps").apply()
+                getSharedPreferences(Prefs.FILE, MODE_PRIVATE).edit().putString(Prefs.LAUNCH_TAB, "apps").apply()
                 packageManager.getLaunchIntentForPackage(packageName)
                     ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) }
                     ?.let { startActivity(it) }
@@ -785,22 +794,26 @@ class SidebarOverlayService : Service() {
             override fun afterTextChanged(s: android.text.Editable?) { rebuildGrid(s?.toString() ?: "") }
         })
 
-        Thread {
-            val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
-            @Suppress("DEPRECATION")
-            val rawApps: List<ResolveInfo> = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA)
-            val entries = rawApps.sortedBy { it.loadLabel(pm).toString().lowercase() }.mapNotNull { app ->
-                val pkg = app.activityInfo.packageName
-                val name = app.loadLabel(pm).toString()
-                try { Triple(pkg, name, pm.getApplicationIcon(pkg)) }
-                catch (e: Exception) { Log.w(TAG, "No icon for $pkg", e); null }
+        appLoadExecutor.submit {
+            try {
+                val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+                @Suppress("DEPRECATION")
+                val rawApps: List<ResolveInfo> = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA)
+                val entries = rawApps.sortedBy { it.loadLabel(pm).toString().lowercase() }.mapNotNull { app ->
+                    val pkg = app.activityInfo.packageName
+                    val name = app.loadLabel(pm).toString()
+                    try { Triple(pkg, name, pm.getApplicationIcon(pkg)) }
+                    catch (e: Exception) { Log.w(TAG, "No icon for $pkg", e); null }
+                }
+                Handler(Looper.getMainLooper()).post {
+                    if (allAppsView == null) return@post
+                    appList.addAll(entries)
+                    rebuildGrid(searchBox.text.toString())
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load app list", e)
             }
-            Handler(Looper.getMainLooper()).post {
-                if (allAppsView == null) return@post
-                appList.addAll(entries)
-                rebuildGrid(searchBox.text.toString())
-            }
-        }.start()
+        }
     }
 
     private fun hideAllAppsDrawer() {
@@ -1047,8 +1060,8 @@ class SidebarOverlayService : Service() {
     }
 
     private fun loadFavorites(): List<String> {
-        val json = getSharedPreferences("sidebar_prefs", MODE_PRIVATE)
-            .getString("favorites", "[]") ?: "[]"
+        val json = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
+            .getString(Prefs.FAVORITES, "[]") ?: "[]"
         return buildList {
             try {
                 val arr = JSONArray(json)
