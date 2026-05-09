@@ -23,6 +23,7 @@ import android.view.animation.OvershootInterpolator
 import android.widget.*
 import androidx.core.app.NotificationCompat
 import org.json.JSONArray
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
 class SidebarOverlayService : Service() {
@@ -42,6 +43,9 @@ class SidebarOverlayService : Service() {
     private var vibrationEnabled = true
 
     private val appLoadExecutor = Executors.newSingleThreadExecutor()
+    // Keyed by package name; populated on service start so panel and drawer open instantly.
+    private val appIconCache = ConcurrentHashMap<String, Pair<String, Drawable>>()
+    @Volatile private var cachedAllApps: List<Triple<String, String, Drawable>>? = null
 
     // Fullscreen detection — only active when auto-hide-fullscreen pref is on.
     // 2 s interval is plenty; tighter polling prevents deep-sleep unnecessarily.
@@ -124,6 +128,7 @@ class SidebarOverlayService : Service() {
         if (Settings.canDrawOverlays(this)) {
             Handler(Looper.getMainLooper()).post { addHandle() }
         }
+        appLoadExecutor.submit { prefetchAppData() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -506,16 +511,21 @@ class SidebarOverlayService : Service() {
                     }
                     container.addView(row)
                 }
-                try {
-                    val info = pm.getApplicationInfo(pkg, 0)
-                    val name = pm.getApplicationLabel(info).toString()
-                    val icon = pm.getApplicationIcon(pkg)
-                    row?.addView(makeAppCell(pkg, name, icon, labelColor, oPrefs.showLabels))
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to load app info for $pkg", e)
-                    row?.addView(View(this).apply {
-                        layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
-                    })
+                val cached = appIconCache[pkg]
+                if (cached != null) {
+                    row?.addView(makeAppCell(pkg, cached.first, cached.second, labelColor, oPrefs.showLabels))
+                } else {
+                    try {
+                        val info = pm.getApplicationInfo(pkg, 0)
+                        val name = pm.getApplicationLabel(info).toString()
+                        val icon = pm.getApplicationIcon(pkg)
+                        row?.addView(makeAppCell(pkg, name, icon, labelColor, oPrefs.showLabels))
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to load app info for $pkg", e)
+                        row?.addView(View(this).apply {
+                            layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
+                        })
+                    }
                 }
             }
             if (pkgs.size % 2 != 0) {
@@ -794,24 +804,30 @@ class SidebarOverlayService : Service() {
             override fun afterTextChanged(s: android.text.Editable?) { rebuildGrid(s?.toString() ?: "") }
         })
 
-        appLoadExecutor.submit {
-            try {
-                val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
-                @Suppress("DEPRECATION")
-                val rawApps: List<ResolveInfo> = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA)
-                val entries = rawApps.sortedBy { it.loadLabel(pm).toString().lowercase() }.mapNotNull { app ->
-                    val pkg = app.activityInfo.packageName
-                    val name = app.loadLabel(pm).toString()
-                    try { Triple(pkg, name, pm.getApplicationIcon(pkg)) }
-                    catch (e: Exception) { Log.w(TAG, "No icon for $pkg", e); null }
+        val snapshot = cachedAllApps
+        if (snapshot != null) {
+            appList.addAll(snapshot)
+            rebuildGrid(searchBox.text.toString())
+        } else {
+            appLoadExecutor.submit {
+                try {
+                    val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+                    @Suppress("DEPRECATION")
+                    val rawApps: List<ResolveInfo> = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA)
+                    val entries = rawApps.sortedBy { it.loadLabel(pm).toString().lowercase() }.mapNotNull { app ->
+                        val pkg = app.activityInfo.packageName
+                        val name = app.loadLabel(pm).toString()
+                        try { Triple(pkg, name, pm.getApplicationIcon(pkg)) }
+                        catch (e: Exception) { Log.w(TAG, "No icon for $pkg", e); null }
+                    }
+                    Handler(Looper.getMainLooper()).post {
+                        if (allAppsView == null) return@post
+                        appList.addAll(entries)
+                        rebuildGrid(searchBox.text.toString())
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to load app list", e)
                 }
-                Handler(Looper.getMainLooper()).post {
-                    if (allAppsView == null) return@post
-                    appList.addAll(entries)
-                    rebuildGrid(searchBox.text.toString())
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load app list", e)
             }
         }
     }
@@ -1056,6 +1072,28 @@ class SidebarOverlayService : Service() {
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(this, "Failed to launch app", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun prefetchAppData() {
+        try {
+            val pm = packageManager
+            val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+            @Suppress("DEPRECATION")
+            val entries = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA)
+                .sortedBy { it.loadLabel(pm).toString().lowercase() }
+                .mapNotNull { app ->
+                    val pkg = app.activityInfo.packageName
+                    val name = app.loadLabel(pm).toString()
+                    try {
+                        val icon = pm.getApplicationIcon(pkg)
+                        appIconCache[pkg] = Pair(name, icon)
+                        Triple(pkg, name, icon)
+                    } catch (e: Exception) { null }
+                }
+            cachedAllApps = entries
+        } catch (e: Exception) {
+            Log.e(TAG, "Prefetch failed", e)
         }
     }
 
