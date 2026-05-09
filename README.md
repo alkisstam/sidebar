@@ -17,7 +17,7 @@ An Android overlay sidebar for quick access to favorite apps. A pull-tab handle 
 
 ## Galery
 
-![Screenshot](assets/images/floating-panel.jpg)
+<img src="https://github.com/alkisstam/sidebar/blob/master/assets/images/floating-panel.jpg" alt="Alt text" width="300">
 
 ## Installation
 
