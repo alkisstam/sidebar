@@ -2,6 +2,8 @@ package com.anonymous.sidebar
 
 import android.app.*
 import android.content.*
+import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
 import android.content.pm.ServiceInfo
 import android.graphics.*
 import android.graphics.drawable.Drawable
@@ -31,6 +33,9 @@ class SidebarOverlayService : Service() {
     private var pillInnerView: View? = null
     private var panelView: View? = null
     private var dismissOverlay: View? = null
+    private var allAppsView: View? = null
+    private var allAppsDismissOverlay: View? = null
+    private var showingDrawer = false
     private var shown = false
     private var dragState = DragState.IDLE
     private var vibrationEnabled = true
@@ -155,7 +160,8 @@ class SidebarOverlayService : Service() {
 
     data class PillPrefs(
         val height: Int, val width: Int, val position: Float,
-        val side: String, val opacity: Float, val theme: String
+        val side: String, val opacity: Float, val theme: String,
+        val panelColor: String
     )
 
     data class OverlayPrefs(
@@ -172,8 +178,28 @@ class SidebarOverlayService : Service() {
             p.getFloat("pill_position", 0.5f),
             p.getString("pill_side", "right") ?: "right",
             p.getFloat("pill_opacity", 1.0f),
-            p.getString("pill_theme", "dark") ?: "dark"
+            p.getString("pill_theme", "dark") ?: "dark",
+            p.getString("panel_color", "") ?: ""
         )
+    }
+
+    private fun resolvePanelBg(rawColor: String, alpha: Int, light: Boolean): Int {
+        if (rawColor.isNotEmpty()) {
+            try {
+                val c = Color.parseColor(rawColor)
+                return Color.argb(alpha, Color.red(c), Color.green(c), Color.blue(c))
+            } catch (_: IllegalArgumentException) {}
+        }
+        return if (light) Color.argb(alpha, 255, 251, 254) else Color.argb(alpha, 28, 27, 31)
+    }
+
+    private fun resolveControlsBg(panelBg: Int, rawColor: String, light: Boolean): Int {
+        if (rawColor.isEmpty()) return if (light) Color.argb(255, 237, 232, 242) else Color.argb(255, 43, 41, 48)
+        val hsv = FloatArray(3)
+        Color.colorToHSV(panelBg, hsv)
+        val delta = if (hsv[2] < 0.5f) 0.15f else -0.12f
+        hsv[2] = (hsv[2] + delta).coerceIn(0f, 1f)
+        return Color.HSVToColor(255, hsv)
     }
 
     private fun overlayPrefs(): OverlayPrefs {
@@ -345,7 +371,8 @@ class SidebarOverlayService : Service() {
         // Controls strip: top+bottom padding + 2 tile rows + gap between rows
         val controlsH = if (qcAny) dp(8) + dp(60) + dp(6) + dp(60) + dp(8) + dp(6) else 0
         val appsH = dp(4) + rows * rowH + dp(16)
-        val panelHeight = (dp(24) + controlsH + appsH).coerceAtMost(maxPanelHeight)
+        val bottomBarH = dp(1) + dp(6) + dp(40) + dp(8) // divider + padding + btn + padding
+        val panelHeight = (dp(24) + controlsH + appsH + bottomBarH).coerceAtMost(maxPanelHeight)
 
         val overlay = View(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
@@ -361,13 +388,16 @@ class SidebarOverlayService : Service() {
         dismissOverlay = overlay
 
         // M3 color tokens
-        val panelBg    = if (light) Color.argb(248, 255, 251, 254) else Color.argb(248, 28, 27, 31)
-        val controlsBg = if (light) Color.argb(255, 237, 232, 242) else Color.argb(255, 43, 41, 48)
-        val tileBg     = if (light) Color.argb(220, 231, 224, 236) else Color.argb(220, 55, 52, 62)
-        val tileActive = if (light) Color.argb(255, 103, 80, 164)  else Color.argb(255, 79, 55, 139)
-        val indClr     = if (light) Color.argb(60, 0, 0, 0)        else Color.argb(80, 255, 255, 255)
-        val labelColor = if (light) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
-        val emptyColor = if (light) Color.argb(160, 73, 69, 79)    else Color.argb(160, 202, 196, 208)
+        val panelBg    = resolvePanelBg(prefs.panelColor, 248, light)
+        val controlsBg = resolveControlsBg(panelBg, prefs.panelColor, light)
+        val effectiveLight = if (prefs.panelColor.isNotEmpty()) {
+            val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
+        } else light
+        val tileBg     = if (effectiveLight) Color.argb(220, 231, 224, 236) else Color.argb(220, 55, 52, 62)
+        val tileActive = if (effectiveLight) Color.argb(255, 103, 80, 164)  else Color.argb(255, 79, 55, 139)
+        val indClr     = if (effectiveLight) Color.argb(60, 0, 0, 0)        else Color.argb(80, 255, 255, 255)
+        val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
+        val emptyColor = if (effectiveLight) Color.argb(160, 73, 69, 79)    else Color.argb(160, 202, 196, 208)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -491,6 +521,51 @@ class SidebarOverlayService : Service() {
         root.addView(scroll, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
+        // Bottom action bar
+        root.addView(View(this).apply {
+            setBackgroundColor(indClr)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1).apply {
+                marginStart = dp(10); marginEnd = dp(10)
+            }
+        })
+        val bottomBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(8), dp(6), dp(8), dp(8))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        val allAppsBtn = TextView(this).apply {
+            text = "All Apps"
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(labelColor)
+            background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(10).toFloat() }
+            setPadding(dp(4), dp(10), dp(4), dp(10))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            isClickable = true; isFocusable = true
+            setOnClickListener { showAllAppsDrawer() }
+        }
+        val editBtn = TextView(this).apply {
+            text = "Edit"
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(labelColor)
+            background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(10).toFloat() }
+            setPadding(dp(4), dp(10), dp(4), dp(10))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4) }
+            isClickable = true; isFocusable = true
+            setOnClickListener {
+                hidePanel()
+                getSharedPreferences("sidebar_prefs", MODE_PRIVATE).edit().putString("launch_tab", "apps").apply()
+                packageManager.getLaunchIntentForPackage(packageName)
+                    ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) }
+                    ?.let { startActivity(it) }
+            }
+        }
+        bottomBar.addView(allAppsBtn)
+        bottomBar.addView(editBtn)
+        root.addView(bottomBar)
+
         val panelGravity = if (prefs.side == "left") Gravity.START or Gravity.CENTER_VERTICAL
                            else Gravity.END or Gravity.CENTER_VERTICAL
         wm.addView(root, WindowManager.LayoutParams(
@@ -540,7 +615,208 @@ class SidebarOverlayService : Service() {
                 panel.alpha = 0f
                 runCatching { wm.removeViewImmediate(panel) }
                 overlay?.let { runCatching { wm.removeViewImmediate(it) } }
-                if (!wasDrag) handle?.visibility = View.VISIBLE
+                if (!wasDrag && !showingDrawer) handle?.visibility = View.VISIBLE
+            }
+            .start()
+    }
+
+    // ── All Apps drawer ───────────────────────────────────────────────────────
+
+    private fun showAllAppsDrawer() {
+        showingDrawer = true
+        hidePanel()
+        vibrate()
+        val p = pillPrefs()
+        val light = p.theme == "light"
+        val dm = resources.displayMetrics
+        val drawerW = (dm.widthPixels * 0.9).toInt()
+        val drawerH = (dm.heightPixels * 0.82).toInt()
+
+        val panelBg    = resolvePanelBg(p.panelColor, 252, light)
+        val effectiveLight = if (p.panelColor.isNotEmpty()) {
+            val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
+        } else light
+        val tileBg     = if (effectiveLight) Color.argb(220, 231, 224, 236) else Color.argb(220, 55, 52, 62)
+        val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
+        val indClr     = if (effectiveLight) Color.argb(60, 0, 0, 0)        else Color.argb(80, 255, 255, 255)
+
+        val dismissView = View(this).apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            setOnClickListener { hideAllAppsDrawer() }
+        }
+        wm.addView(dismissView, WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
+        ))
+        allAppsDismissOverlay = dismissView
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply { setColor(panelBg); cornerRadius = dp(24).toFloat() }
+            elevation = dp(8).toFloat()
+            clipToOutline = true
+            outlineProvider = ViewOutlineProvider.BACKGROUND
+        }
+
+        // Header row
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(12), dp(12), dp(8))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        header.addView(TextView(this).apply {
+            text = "All Apps"
+            textSize = 16f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(labelColor)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        header.addView(TextView(this).apply {
+            text = "✕"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setTextColor(labelColor)
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(20).toFloat() }
+            isClickable = true; isFocusable = true
+            setOnClickListener { hideAllAppsDrawer() }
+        })
+        root.addView(header)
+
+        root.addView(View(this).apply {
+            setBackgroundColor(indClr)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+        })
+
+        // Search bar
+        val hintColor = Color.argb(120, Color.red(labelColor), Color.green(labelColor), Color.blue(labelColor))
+        val searchBox = android.widget.EditText(this).apply {
+            hint = "Search apps"
+            textSize = 14f
+            setTextColor(labelColor)
+            setHintTextColor(hintColor)
+            background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(20).toFloat() }
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            isSingleLine = true
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(dp(12), dp(8), dp(12), dp(8)) }
+        }
+        root.addView(searchBox)
+
+        // Scrollable grid
+        val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
+        val grid = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(8), dp(8), dp(16))
+        }
+        grid.addView(TextView(this).apply {
+            text = "Loading…"
+            setTextColor(labelColor)
+            gravity = Gravity.CENTER
+            setPadding(0, dp(40), 0, dp(40))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        })
+        scroll.addView(grid)
+        root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+
+        wm.addView(root, WindowManager.LayoutParams(
+            drawerW, drawerH,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.CENTER })
+        allAppsView = root
+
+        root.alpha = 0f; root.scaleX = 0.92f; root.scaleY = 0.92f
+        root.animate().alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(280).setInterpolator(OvershootInterpolator(1.0f)).start()
+
+        val pm = packageManager
+        val appList = mutableListOf<Triple<String, String, Drawable>>()
+
+        fun rebuildGrid(query: String) {
+            val filtered = if (query.isEmpty()) appList
+                           else appList.filter { it.second.lowercase().contains(query.lowercase()) }
+            grid.removeAllViews()
+            if (filtered.isEmpty()) {
+                grid.addView(TextView(this).apply {
+                    text = if (query.isEmpty()) "" else "No results"
+                    setTextColor(labelColor)
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(40), 0, dp(40))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                })
+                return
+            }
+            var row: LinearLayout? = null
+            for ((i, app) in filtered.withIndex()) {
+                if (i % 4 == 0) {
+                    row = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    }
+                    grid.addView(row)
+                }
+                val (pkg, name, icon) = app
+                row?.addView(makeAppCell(pkg, name, icon, labelColor, true) {
+                    hideAllAppsDrawer()
+                    doLaunch(pkg)
+                })
+            }
+            val rem = filtered.size % 4
+            if (rem != 0) repeat(4 - rem) {
+                row?.addView(View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                })
+            }
+        }
+
+        searchBox.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) { rebuildGrid(s?.toString() ?: "") }
+        })
+
+        Thread {
+            val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+            @Suppress("DEPRECATION")
+            val rawApps: List<ResolveInfo> = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA)
+            val entries = rawApps.sortedBy { it.loadLabel(pm).toString().lowercase() }.mapNotNull { app ->
+                val pkg = app.activityInfo.packageName
+                val name = app.loadLabel(pm).toString()
+                try { Triple(pkg, name, pm.getApplicationIcon(pkg)) }
+                catch (e: Exception) { Log.w(TAG, "No icon for $pkg", e); null }
+            }
+            Handler(Looper.getMainLooper()).post {
+                if (allAppsView == null) return@post
+                appList.addAll(entries)
+                rebuildGrid(searchBox.text.toString())
+            }
+        }.start()
+    }
+
+    private fun hideAllAppsDrawer() {
+        val drawer = allAppsView ?: return
+        allAppsView = null
+        showingDrawer = false
+        val dismiss = allAppsDismissOverlay
+        allAppsDismissOverlay = null
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(drawer.windowToken, 0)
+        if (dragState == DragState.IDLE) handleView?.visibility = View.VISIBLE
+        drawer.animate().alpha(0f).scaleX(0.92f).scaleY(0.92f)
+            .setDuration(180).setInterpolator(AccelerateInterpolator(1.5f))
+            .withEndAction {
+                runCatching { wm.removeViewImmediate(drawer) }
+                dismiss?.let { runCatching { wm.removeViewImmediate(it) } }
             }
             .start()
     }
@@ -699,7 +975,8 @@ class SidebarOverlayService : Service() {
 
     private fun makeAppCell(
         pkg: String, name: String, icon: Drawable,
-        labelColor: Int = Color.WHITE, showLabel: Boolean = true
+        labelColor: Int = Color.WHITE, showLabel: Boolean = true,
+        onClick: () -> Unit = { launch(pkg) }
     ): View {
         val cell = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -708,7 +985,7 @@ class SidebarOverlayService : Service() {
             isClickable = true
             isFocusable = true
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            setOnClickListener { launch(pkg) }
+            setOnClickListener { onClick() }
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN ->
@@ -745,6 +1022,10 @@ class SidebarOverlayService : Service() {
 
     private fun launch(pkg: String) {
         hidePanel()
+        doLaunch(pkg)
+    }
+
+    private fun doLaunch(pkg: String) {
         vibrate()
         val intent = packageManager.getLaunchIntentForPackage(pkg)
         if (intent == null) {

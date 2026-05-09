@@ -134,6 +134,7 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("side")) prefs.putString("pill_side", settings.getString("side"))
         if (settings.hasKey("opacity")) prefs.putFloat("pill_opacity", settings.getDouble("opacity").toFloat())
         if (settings.hasKey("theme")) prefs.putString("pill_theme", settings.getString("theme"))
+        if (settings.hasKey("panelColor")) prefs.putString("panel_color", settings.getString("panelColor") ?: "")
         prefs.apply()
         val intent = Intent(reactContext, SidebarOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -154,6 +155,7 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putString("side", prefs.getString("pill_side", "right") ?: "right")
         map.putDouble("opacity", prefs.getFloat("pill_opacity", 1.0f).toDouble())
         map.putString("theme", prefs.getString("pill_theme", "dark") ?: "dark")
+        map.putString("panelColor", prefs.getString("panel_color", "") ?: "")
         promise.resolve(map)
     }
 
@@ -193,6 +195,14 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
             reactContext.startService(intent)
         }
         promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun getLaunchTab(promise: Promise) {
+        val prefs = reactContext.getSharedPreferences("sidebar_prefs", Context.MODE_PRIVATE)
+        val tab = prefs.getString("launch_tab", null)
+        if (tab != null) prefs.edit().remove("launch_tab").apply()
+        promise.resolve(tab)
     }
 
     @ReactMethod

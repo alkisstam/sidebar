@@ -5,6 +5,7 @@ import {
   Alert,
   AppState,
   AppStateStatus,
+  Easing,
   FlatList,
   Linking,
   PanResponder,
@@ -38,8 +39,19 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ];
 
 const DEFAULT_PILL: PillSettings = {
-  height: 80, width: 36, position: 0.5, side: "left", opacity: 1.0, theme: "dark",
+  height: 80, width: 36, position: 0.5, side: "left", opacity: 1.0, theme: "dark", panelColor: "",
 };
+
+const PANEL_COLORS: { key: string }[] = [
+  { key: "" },
+  { key: "#456EB0" },
+  { key: "#35176E" },
+  { key: "#215B85" },
+  { key: "#480654" },
+  { key: "#6E9EE6" },
+  { key: "#8FF2DB" },
+  { key: "#EDE6A6" },
+];
 const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,
   quickControlsEnabled: true, showTorch: true, showAutoRotate: true, showAutoBrightness: true, showRingerMode: true,
@@ -60,9 +72,18 @@ export default function Index() {
     const fromIdx = tabOrder.indexOf(activeTabRef.current);
     const toIdx = tabOrder.indexOf(tab);
     if (fromIdx === toIdx) return;
-    slideAnim.setValue(toIdx > fromIdx ? 350 : -350);
-    setActiveTab(tab);
-    Animated.timing(slideAnim, { toValue: 0, duration: 220, useNativeDriver: true }).start();
+    const fwd = toIdx > fromIdx;
+    Animated.timing(slideAnim, {
+      toValue: fwd ? -100 : 100, duration: 80,
+      easing: Easing.in(Easing.quad), useNativeDriver: true,
+    }).start(() => {
+      slideAnim.setValue(fwd ? 240 : -240);
+      setActiveTab(tab);
+      Animated.timing(slideAnim, {
+        toValue: 0, duration: 160,
+        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }).start();
+    });
   }, [slideAnim]);
 
   const swipeResponder = useMemo(() =>
@@ -89,6 +110,8 @@ export default function Index() {
   const [pill, setPill] = useState<PillSettings>(DEFAULT_PILL);
   const [overlay, setOverlay] = useState<OverlaySettings>(DEFAULT_OVERLAY);
   const [saving, setSaving] = useState(false);
+  const [hexInput, setHexInput] = useState("");
+  const [showHexInput, setShowHexInput] = useState(false);
   const [savingOverlay, setSavingOverlay] = useState(false);
 
   const [allApps, setAllApps] = useState<InstalledApp[]>([]);
@@ -128,10 +151,12 @@ export default function Index() {
           Sidebar.hasOverlayPermission(),
           Sidebar.hasDndPermission(),
           Sidebar.hasWriteSettingsPermission(),
-        ]).then(([perm, dnd, write]) => {
+          Sidebar.getLaunchTab(),
+        ]).then(([perm, dnd, write, launchTab]) => {
           setPermissionGranted(perm);
           setDndPerm(dnd);
           setWritePerm(write);
+          if (launchTab) changeTab(launchTab as Tab);
         });
       }
       appState.current = next;
@@ -319,6 +344,90 @@ export default function Index() {
                     </Text>
                   </Pressable>
                 ))}
+              </View>
+            </View>
+            <View style={s.separator} />
+            <View style={[s.settingRow, { alignItems: "flex-start", paddingTop: 14, paddingBottom: 14 }]}>
+              <Text style={[s.settingLabel, { paddingTop: 5 }]}>Color</Text>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                  {PANEL_COLORS.map(c => {
+                    const sel = pill.panelColor === c.key;
+                    return (
+                      <Pressable key={c.key} onPress={() => { setPill(p => ({ ...p, panelColor: c.key })); setShowHexInput(false); }}>
+                        <View style={{
+                          width: 34, height: 34, borderRadius: 17,
+                          borderWidth: 2.5,
+                          borderColor: sel ? colors.primary : "transparent",
+                          justifyContent: "center", alignItems: "center",
+                        }}>
+                          {c.key === "" ? (
+                            <View style={{ width: 26, height: 26, borderRadius: 13, overflow: "hidden", flexDirection: "row" }}>
+                              <View style={{ flex: 1, backgroundColor: "#1C1B1F" }} />
+                              <View style={{ flex: 1, backgroundColor: "#FFFBFE" }} />
+                            </View>
+                          ) : (
+                            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c.key }} />
+                          )}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                  {/* Custom swatch */}
+                  {(() => {
+                    const isCustom = pill.panelColor !== "" && !PANEL_COLORS.some(c => c.key === pill.panelColor);
+                    return (
+                      <Pressable onPress={() => { setHexInput(isCustom ? pill.panelColor : ""); setShowHexInput(v => !v); }}>
+                        <View style={{
+                          width: 34, height: 34, borderRadius: 17,
+                          borderWidth: 2.5,
+                          borderColor: isCustom ? colors.primary : "transparent",
+                          justifyContent: "center", alignItems: "center",
+                        }}>
+                          {isCustom ? (
+                            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: pill.panelColor }} />
+                          ) : (
+                            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: colors.surfaceContainerHigh, justifyContent: "center", alignItems: "center" }}>
+                              <Ionicons name="pencil-outline" size={13} color={colors.subtext} />
+                            </View>
+                          )}
+                        </View>
+                      </Pressable>
+                    );
+                  })()}
+                </View>
+                {showHexInput && (
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 8 }}>
+                    <TextInput
+                      value={hexInput}
+                      onChangeText={setHexInput}
+                      placeholder="#RRGGBB"
+                      placeholderTextColor={colors.subtext}
+                      autoCapitalize="characters"
+                      maxLength={7}
+                      style={[s.search, { flex: 1, marginHorizontal: 0, marginBottom: 0, paddingVertical: 8 }]}
+                      onSubmitEditing={() => {
+                        const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
+                        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                          setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
+                          setShowHexInput(false);
+                        }
+                      }}
+                    />
+                    <Pressable
+                      style={s.grantBtn}
+                      onPress={() => {
+                        const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
+                        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                          setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
+                          setShowHexInput(false);
+                        }
+                      }}
+                    >
+                      <Text style={s.grantBtnText}>Apply</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             </View>
             <View style={s.separator} />
@@ -589,15 +698,18 @@ function SliderRow({
   colors: ReturnType<typeof makeColors>;
   s: ReturnType<typeof styles>;
 }) {
-  const fillPct = `${((value - min) / (max - min)) * 100}%`;
+  const [trackWidth, setTrackWidth] = useState(0);
+  const THUMB_D = 28;
+  const ratio = (value - min) / (max - min);
+  const fillWidth = trackWidth > 0 ? THUMB_D + ratio * (trackWidth - THUMB_D) : 0;
   return (
     <View style={s.settingRow}>
       <Text style={s.settingLabel}>{label}</Text>
       <View style={s.sliderWrap}>
         {leftEdge && <Text style={s.sliderEdge}>{leftEdge}</Text>}
-        <View style={s.sliderTrackWrap}>
+        <View style={s.sliderTrackWrap} onLayout={e => setTrackWidth(e.nativeEvent.layout.width)}>
           <View pointerEvents="none" style={s.sliderTrackBg} />
-          <View pointerEvents="none" style={[s.sliderTrackFill, { width: fillPct }]} />
+          <View pointerEvents="none" style={[s.sliderTrackFill, { width: fillWidth }]} />
           <Slider
             style={StyleSheet.absoluteFillObject}
             minimumValue={min}

@@ -15,6 +15,7 @@ export interface PillSettings {
   side: 'left' | 'right';
   opacity: number;
   theme: 'light' | 'dark';
+  panelColor: string;
 }
 
 export interface OverlaySettings {
@@ -65,6 +66,9 @@ export default {
   },
   saveOverlaySettings(settings: OverlaySettings): Promise<void> {
     return SidebarModule.saveOverlaySettings(settings);
+  },
+  getLaunchTab(): Promise<string | null> {
+    return SidebarModule.getLaunchTab();
   },
   hasDndPermission(): Promise<boolean> {
     return SidebarModule.hasDndPermission();
