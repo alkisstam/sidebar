@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.6.0] - 2026-05-10
+
+### Added
+
+**Floating window launch**
+- Long-pressing an app now shows a Freeform option alongside Open in the context menu
+- Launches the app in a resizable floating window centered at 75 % × 65 % of screen using `WINDOWING_MODE_FREEFORM` via `HiddenApiBypass`
+- Tapping Freeform closes the sidebar panel before launching
+- Option only appears on devices where freeform is available (`FEATURE_FREEFORM_WINDOW_MANAGEMENT` or `enable_freeform_support` developer setting)
+
+### Changed
+
+- `LSPosed/AndroidHiddenApiBypass 4.3` added as a dependency; initialized in `Application.onCreate` to exempt all hidden APIs on Android 9+, making hidden-API reflection reliable across Android versions without native code
+
+### Removed
+
+- Split Screen option from the long-press context menu
+
 ## [1.5.0] - 2026-05-10
 
 ### Added
