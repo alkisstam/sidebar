@@ -1187,7 +1187,11 @@ class SidebarOverlayService : Service() {
             setOnClickListener { hideContextMenu(); action() }
         }
         menu.addView(item("Open") { doLaunch(pkg) })
-        menu.addView(item("Split Screen") { doLaunchSplit(pkg) })
+        val freeformEnabled = packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
+            Settings.Global.getInt(contentResolver, "enable_freeform_support", 0) == 1
+        if (freeformEnabled) {
+            menu.addView(item("Freeform") { hidePanel(); doLaunchFreeform(pkg) })
+        }
 
         val container = FrameLayout(this).apply {
             setOnClickListener { hideContextMenu() }
@@ -1210,10 +1214,9 @@ class SidebarOverlayService : Service() {
         contextMenuView = null
     }
 
-    private fun doLaunchSplit(pkg: String) {
+    private fun doLaunchFreeform(pkg: String) {
         vibrate()
-        val intent = packageManager.getLaunchIntentForPackage(pkg)
-        if (intent == null) {
+        val intent = packageManager.getLaunchIntentForPackage(pkg) ?: run {
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(this, "Can't open this app", Toast.LENGTH_SHORT).show()
             }
@@ -1224,14 +1227,28 @@ class SidebarOverlayService : Service() {
         try {
             ActivityOptions::class.java
                 .getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
-                .invoke(opts, 4) // WINDOWING_MODE_SPLIT_SCREEN_SECONDARY = 4
+                .invoke(opts, 5) // WINDOWING_MODE_FREEFORM = 5
         } catch (_: Exception) {}
+        val (sw, sh) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val b = wm.currentWindowMetrics.bounds
+            b.width() to b.height()
+        } else {
+            val dm = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            wm.defaultDisplay.getRealMetrics(dm)
+            dm.widthPixels to dm.heightPixels
+        }
+        val w = (sw * 0.75f).toInt()
+        val h = (sh * 0.65f).toInt()
+        val left = (sw - w) / 2
+        val top = (sh - h) / 4
+        opts.launchBounds = Rect(left, top, left + w, top + h)
         try {
             startActivity(intent, opts.toBundle())
         } catch (e: Exception) {
-            Log.e(TAG, "Split screen launch failed for $pkg", e)
+            Log.e(TAG, "Freeform launch failed for $pkg", e)
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(this, "Split screen not supported", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Freeform not supported", Toast.LENGTH_SHORT).show()
             }
         }
     }

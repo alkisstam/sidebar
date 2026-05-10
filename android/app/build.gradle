@@ -131,6 +131,10 @@ android {
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
 }
 
 // Apply static values from `gradle.properties` to the `android.packagingOptions`
@@ -154,6 +158,8 @@ android {
 }
 
 dependencies {
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:4.3")
+
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
