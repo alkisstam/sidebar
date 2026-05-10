@@ -182,7 +182,8 @@ class SidebarOverlayService : Service() {
         val showTorch: Boolean,
         val showAutoRotate: Boolean,
         val showAutoBrightness: Boolean,
-        val showRingerMode: Boolean
+        val showRingerMode: Boolean,
+        val floatingWindow: Boolean
     )
 
     private fun pillPrefs(): PillPrefs {
@@ -227,7 +228,8 @@ class SidebarOverlayService : Service() {
             p.getBoolean(Prefs.SHOW_TORCH, true),
             p.getBoolean(Prefs.SHOW_AUTO_ROTATE, true),
             p.getBoolean(Prefs.SHOW_AUTO_BRIGHTNESS, true),
-            p.getBoolean(Prefs.SHOW_RINGER_MODE, true)
+            p.getBoolean(Prefs.SHOW_RINGER_MODE, true),
+            p.getBoolean(Prefs.FLOATING_WINDOW, false)
         )
     }
 
@@ -1066,7 +1068,21 @@ class SidebarOverlayService : Service() {
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
-            startActivity(intent)
+            if (overlayPrefs().floatingWindow) {
+                val metrics = wm.currentWindowMetrics.bounds
+                val sw = metrics.width()
+                val sh = metrics.height()
+                val w = (sw * 0.75f).toInt()
+                val h = (sh * 0.65f).toInt()
+                val left = (sw - w) / 2
+                val top = (sh - h) / 4
+                val opts = ActivityOptions.makeBasic().apply {
+                    launchBounds = Rect(left, top, left + w, top + h)
+                }
+                startActivity(intent, opts.toBundle())
+            } else {
+                startActivity(intent)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to launch $pkg", e)
             Handler(Looper.getMainLooper()).post {

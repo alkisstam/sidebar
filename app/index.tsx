@@ -55,6 +55,7 @@ const PANEL_COLORS: { key: string }[] = [
 const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,
   quickControlsEnabled: true, showTorch: true, showAutoRotate: true, showAutoBrightness: true, showRingerMode: true,
+  floatingWindow: false,
 };
 
 export default function Index() {
@@ -488,6 +489,18 @@ export default function Index() {
               <Switch
                 value={overlay.vibration}
                 onValueChange={v => setOverlay(p => ({ ...p, vibration: v }))}
+                trackColor={{ true: colors.tint }}
+              />
+            </View>
+            <View style={s.separator} />
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowLabel}>Floating window</Text>
+                <Text style={s.rowSub}>Open apps in a floating window (requires freeform mode)</Text>
+              </View>
+              <Switch
+                value={overlay.floatingWindow}
+                onValueChange={v => setOverlay(p => ({ ...p, floatingWindow: v }))}
                 trackColor={{ true: colors.tint }}
               />
             </View>

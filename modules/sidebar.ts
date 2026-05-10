@@ -28,6 +28,7 @@ export interface OverlaySettings {
   showAutoRotate: boolean;
   showAutoBrightness: boolean;
   showRingerMode: boolean;
+  floatingWindow: boolean;
 }
 
 export default {
