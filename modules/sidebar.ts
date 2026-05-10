@@ -12,7 +12,7 @@ export interface PillSettings {
   height: number;
   width: number;
   position: number;
-  side: 'left' | 'right';
+  side: 'left' | 'right' | 'both';
   opacity: number;
   theme: 'light' | 'dark';
   panelColor: string;
@@ -31,6 +31,9 @@ export interface OverlaySettings {
   showAllApps: boolean;
   showEdit: boolean;
   quickControlsPosition: 'top' | 'bottom';
+  gestureSwipeUp: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
+  gestureSwipeDown: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
+  gestureDoubleTap: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
 }
 
 export default {

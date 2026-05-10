@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.5.0] - 2026-05-10
+
+### Added
+
+**Pill gestures**
+- Three new gesture slots on the pull-tab handle: swipe up, swipe down, double tap
+- Each slot is independently configurable to one of five actions: Off, Open Panel, Notifications, Quick Settings, All Apps
+- Default: swipe down → expand notifications; swipe up and double tap → Off
+- Notification and quick-settings expansion uses `StatusBarManager` via the normal `EXPAND_STATUS_BAR` permission (no root required)
+
+**Handle — Both sides**
+- New "Both" option in the Side setting spawns a pull-tab on each screen edge simultaneously
+- Swiping either handle opens the panel on that side; both handles hide and show together
+
+**Long-press app context menu**
+- Long-pressing any app cell (panel grid or All Apps drawer) shows a small floating menu with Open and Split Screen options
+- Split Screen attempts `WINDOWING_MODE_SPLIT_SCREEN_SECONDARY` via reflection; works on stock Android 7+
+
+**Control tab — All Apps and Edit toggles**
+- All Apps and Edit can now be individually enabled or disabled from the Control tab, matching the per-tile toggle pattern of the quick controls
+
+### Changed
+
+**Controls strip — unified section**
+- All Apps and Edit are now rendered as quick-control-style tiles (rounded square, icon, label) inside the controls strip rather than a separate bottom bar
+- The entire strip — quick controls and action tiles — moves together when the position is switched between top and bottom
+
+**Handle tab — color picker**
+- Custom panel color input now uses a `HueCircular` + `Panel1` color wheel from `reanimated-color-picker` instead of a plain hex text field; the hex input remains as a secondary precision entry
+
+**Theme scope**
+- The Light/Dark theme setting in the Handle tab now applies immediately to the main app UI, not only the overlay panel
+
+**Handle tab — range changes**
+- Opacity minimum reduced from 0.1 to 0 (fully transparent hot zone)
+- Width minimum reduced from 6 dp to 2 dp
+
+**Behavior tab — quick controls position**
+- New Top/Bottom segmented control sets whether the controls strip appears above or below the favorites grid
+
+### Removed
+
+- Floating window launch option (relied on OEM-proprietary APIs not accessible from user-space on ColorOS and similar; split screen covers the multi-window use case on stock Android)
+- One-column panel layout option (two columns retained as the only layout)
+
 ## [1.4.0] - 2026-05-09
 
 ### Added

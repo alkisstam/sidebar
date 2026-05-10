@@ -24,4 +24,7 @@ internal object Prefs {
     const val SHOW_ALL_APPS = "show_all_apps"
     const val SHOW_EDIT = "show_edit"
     const val QUICK_CONTROLS_POSITION = "quick_controls_position"
+    const val GESTURE_SWIPE_UP = "gesture_swipe_up"
+    const val GESTURE_SWIPE_DOWN = "gesture_swipe_down"
+    const val GESTURE_DOUBLE_TAP = "gesture_double_tap"
 }

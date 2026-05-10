@@ -57,6 +57,7 @@ const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,
   quickControlsEnabled: true, showTorch: true, showAutoRotate: true, showAutoBrightness: true, showRingerMode: true,
   showAllApps: true, showEdit: true, quickControlsPosition: 'bottom',
+  gestureSwipeUp: 'none', gestureSwipeDown: 'notifications', gestureDoubleTap: 'none',
 };
 
 export default function Index() {
@@ -320,7 +321,7 @@ export default function Index() {
             <View style={s.settingRow}>
               <Text style={s.settingLabel}>Side</Text>
               <View style={s.segmented}>
-                {(["left", "right"] as const).map(side => (
+                {(["left", "right", "both"] as const).map(side => (
                   <Pressable
                     key={side}
                     style={[s.segBtn, pill.side === side && s.segBtnActive]}
@@ -461,12 +462,12 @@ export default function Index() {
               onChange={v => setPill(p => ({ ...p, height: Math.round(v) }))}
               colors={colors} s={s} />
             <View style={s.separator} />
-            <SliderRow label="Width" min={6} max={40} step={1}
+            <SliderRow label="Width" min={2} max={40} step={1}
               value={pill.width} display={`${Math.round(pill.width)}`}
               onChange={v => setPill(p => ({ ...p, width: Math.round(v) }))}
               colors={colors} s={s} />
             <View style={s.separator} />
-            <SliderRow label="Opacity" min={0.1} max={1} step={0.05}
+            <SliderRow label="Opacity" min={0} max={1} step={0.05}
               value={pill.opacity} display={pill.opacity.toFixed(2)}
               onChange={v => setPill(p => ({ ...p, opacity: parseFloat(v.toFixed(2)) }))}
               colors={colors} s={s} />
@@ -516,6 +517,36 @@ export default function Index() {
               leftEdge="High" rightEdge="Low"
               onChange={v => setOverlay(p => ({ ...p, sensitivity: Math.round(v) }))}
               colors={colors} s={s} />
+            <View style={s.separator} />
+            <Text style={[s.rowLabel, { marginBottom: 10 }]}>Pill gestures</Text>
+            {(['gestureSwipeUp', 'gestureSwipeDown', 'gestureDoubleTap'] as const).map((key, i) => {
+              const labels = ['Swipe up', 'Swipe down', 'Double tap'];
+              const actions = [
+                { value: 'none', label: 'Off' },
+                { value: 'panel', label: 'Panel' },
+                { value: 'notifications', label: 'Notifs' },
+                { value: 'quick_settings', label: 'QS' },
+                { value: 'all_apps', label: 'Apps' },
+              ] as const;
+              return (
+                <View key={key} style={{ marginBottom: i < 2 ? 10 : 0 }}>
+                  <Text style={[s.rowSub, { marginBottom: 6 }]}>{labels[i]}</Text>
+                  <View style={s.segmented}>
+                    {actions.map(a => (
+                      <Pressable
+                        key={a.value}
+                        style={[s.segBtnSm, overlay[key] === a.value && s.segBtnActive]}
+                        onPress={() => setOverlay(p => ({ ...p, [key]: a.value }))}
+                      >
+                        <Text style={[s.segBtnSmText, overlay[key] === a.value && s.segBtnTextActive]}>
+                          {a.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
             <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
               <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save Behavior Settings"}</Text>
             </Pressable>
@@ -850,8 +881,10 @@ function styles(colors: ReturnType<typeof makeColors>) {
       overflow: "hidden",
     },
     segBtn: { paddingHorizontal: 20, paddingVertical: 9, flex: 1, alignItems: "center" },
+    segBtnSm: { paddingHorizontal: 6, paddingVertical: 7, flex: 1, alignItems: "center" },
     segBtnActive: { backgroundColor: colors.secondaryContainer },
     segBtnText: { fontSize: 14, color: colors.outline, letterSpacing: 0.1 },
+    segBtnSmText: { fontSize: 12, color: colors.outline },
     segBtnTextActive: { color: colors.onSecondaryContainer, fontWeight: "500" },
 
     sliderWrap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },

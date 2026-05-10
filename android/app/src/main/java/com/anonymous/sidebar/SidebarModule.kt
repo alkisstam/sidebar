@@ -177,6 +177,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putBoolean("showAllApps", prefs.getBoolean(Prefs.SHOW_ALL_APPS, true))
         map.putBoolean("showEdit", prefs.getBoolean(Prefs.SHOW_EDIT, true))
         map.putString("quickControlsPosition", prefs.getString(Prefs.QUICK_CONTROLS_POSITION, "bottom") ?: "bottom")
+        map.putString("gestureSwipeUp", prefs.getString(Prefs.GESTURE_SWIPE_UP, "none") ?: "none")
+        map.putString("gestureSwipeDown", prefs.getString(Prefs.GESTURE_SWIPE_DOWN, "notifications") ?: "notifications")
+        map.putString("gestureDoubleTap", prefs.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none")
         promise.resolve(map)
     }
 
@@ -195,6 +198,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("showAllApps")) prefs.putBoolean(Prefs.SHOW_ALL_APPS, settings.getBoolean("showAllApps"))
         if (settings.hasKey("showEdit")) prefs.putBoolean(Prefs.SHOW_EDIT, settings.getBoolean("showEdit"))
         if (settings.hasKey("quickControlsPosition")) prefs.putString(Prefs.QUICK_CONTROLS_POSITION, settings.getString("quickControlsPosition"))
+        if (settings.hasKey("gestureSwipeUp")) prefs.putString(Prefs.GESTURE_SWIPE_UP, settings.getString("gestureSwipeUp"))
+        if (settings.hasKey("gestureSwipeDown")) prefs.putString(Prefs.GESTURE_SWIPE_DOWN, settings.getString("gestureSwipeDown"))
+        if (settings.hasKey("gestureDoubleTap")) prefs.putString(Prefs.GESTURE_DOUBLE_TAP, settings.getString("gestureDoubleTap"))
         prefs.apply()
         val intent = Intent(reactContext, SidebarOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

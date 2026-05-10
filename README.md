@@ -4,16 +4,18 @@ An Android overlay sidebar for quick access to favorite apps. A pull-tab handle 
 
 ## Features
 
-- Pull-tab handle on the screen edge (left or right) with configurable vertical position, size, opacity, theme, and panel background color
-- Floating panel with a quick-controls strip (torch, auto-rotate, auto-brightness, ringer mode) and a scrollable 2-column grid of favorite apps
-- All Apps button opens a centered full-screen drawer with a 4-column alphabetical grid and live search; Edit button jumps directly to the Apps tab
-- Tap any app to launch it and close the panel; drag-to-reorder favorites via long-press in the Apps tab
+- Pull-tab handle on the screen edge — left, right, or both sides simultaneously — with configurable vertical position, size (down to 2 dp), and opacity (down to fully transparent)
+- Pill gestures: swipe up, swipe down, and double tap each map to a configurable action — open panel, expand notifications, expand quick settings, or open all apps
+- Floating panel with a unified controls strip containing quick-control tiles (torch, auto-rotate, auto-brightness, ringer mode) alongside All Apps and Edit action tiles; the entire strip positions at the top or bottom of the panel
+- All Apps drawer: centered overlay with a 4-column alphabetical grid of all installed apps and a live search bar
+- Long-press any app icon to open a context menu with Open or Split Screen options (split screen works on stock Android)
+- Drag-to-reorder favorites via long-press on the drag indicator in the open panel; tap any app to launch it
 - Persists across reboots via a foreground service and boot receiver
 - Auto-hides in fullscreen apps (configurable); battery-friendly polling that pauses when the screen is off
 - Material Design 3 config UI with four tabs: Handle, Behavior, Control, Apps; swipe left/right to switch tabs
-- Handle tab: side, theme, panel color picker (8 presets + custom hex), position, height, width, opacity
-- Behavior tab: auto-hide in fullscreen, app labels, vibration feedback, swipe sensitivity
-- Control tab: master and per-tile quick-controls toggles; overlay, Do Not Disturb, and system-settings permission management
+- Handle tab: side (left / right / both), theme (applied to entire app), panel color picker (8 presets + color wheel), position, height, width, opacity
+- Behavior tab: auto-hide in fullscreen, app labels, vibration feedback, swipe sensitivity, pill gesture mapping
+- Control tab: master and per-tile toggles for quick controls and action buttons; overlay, Do Not Disturb, and system-settings permission management
 
 ## Gallery
 

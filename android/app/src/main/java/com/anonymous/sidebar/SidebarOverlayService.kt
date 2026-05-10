@@ -32,7 +32,10 @@ class SidebarOverlayService : Service() {
 
     private lateinit var wm: WindowManager
     private var handleView: View? = null
+    private var handleViewAlt: View? = null
     private var pillInnerView: View? = null
+    private var pillInnerViewAlt: View? = null
+    private var lastActiveSide = "right"
     private var panelView: View? = null
     private var dismissOverlay: View? = null
     private var allAppsView: View? = null
@@ -53,9 +56,10 @@ class SidebarOverlayService : Service() {
     private val fsHandler = Handler(Looper.getMainLooper())
     private val fsRunnable = object : Runnable {
         override fun run() {
-            val handle = handleView
-            if (handle != null && !shown && dragState == DragState.IDLE) {
-                handle.visibility = if (isSystemFullscreen()) View.INVISIBLE else View.VISIBLE
+            if (!shown && dragState == DragState.IDLE) {
+                val vis = if (isSystemFullscreen()) View.INVISIBLE else View.VISIBLE
+                handleView?.visibility = vis
+                handleViewAlt?.visibility = vis
             }
             fsHandler.postDelayed(this, 2000)
         }
@@ -147,6 +151,7 @@ class SidebarOverlayService : Service() {
         torchCameraId?.let { runCatching { cameraManager?.unregisterTorchCallback(torchCallback) } }
         Handler(Looper.getMainLooper()).post {
             handleView?.let { runCatching { wm.removeView(it) } }
+            handleViewAlt?.let { runCatching { wm.removeView(it) } }
             panelView?.let { runCatching { wm.removeView(it) } }
             dismissOverlay?.let { runCatching { wm.removeView(it) } }
         }
@@ -155,8 +160,9 @@ class SidebarOverlayService : Service() {
     private fun refreshHandle() {
         fsHandler.removeCallbacks(fsRunnable)
         handleView?.let { runCatching { wm.removeView(it) } }
-        handleView = null
-        pillInnerView = null
+        handleViewAlt?.let { runCatching { wm.removeView(it) } }
+        handleView = null; handleViewAlt = null
+        pillInnerView = null; pillInnerViewAlt = null
         addHandle()
     }
 
@@ -186,7 +192,10 @@ class SidebarOverlayService : Service() {
         val showRingerMode: Boolean,
         val showAllApps: Boolean,
         val showEdit: Boolean,
-        val quickControlsPosition: String
+        val quickControlsPosition: String,
+        val gestureSwipeUp: String,
+        val gestureSwipeDown: String,
+        val gestureDoubleTap: String
     )
 
     private fun pillPrefs(): PillPrefs {
@@ -234,13 +243,16 @@ class SidebarOverlayService : Service() {
             p.getBoolean(Prefs.SHOW_RINGER_MODE, true),
             p.getBoolean(Prefs.SHOW_ALL_APPS, true),
             p.getBoolean(Prefs.SHOW_EDIT, true),
-            p.getString(Prefs.QUICK_CONTROLS_POSITION, "bottom") ?: "bottom"
+            p.getString(Prefs.QUICK_CONTROLS_POSITION, "bottom") ?: "bottom",
+            p.getString(Prefs.GESTURE_SWIPE_UP, "none") ?: "none",
+            p.getString(Prefs.GESTURE_SWIPE_DOWN, "notifications") ?: "notifications",
+            p.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none"
         )
     }
 
     // ── Handle ────────────────────────────────────────────────────────────────
 
-    private fun handleParams(prefs: PillPrefs): WindowManager.LayoutParams {
+    private fun handleParams(prefs: PillPrefs, side: String): WindowManager.LayoutParams {
         val pillHeight = dp(prefs.height)
         val screenHeight = resources.displayMetrics.heightPixels
         val yPos = (prefs.position * screenHeight - pillHeight / 2).toInt()
@@ -253,31 +265,25 @@ class SidebarOverlayService : Service() {
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = if (prefs.side == "left") Gravity.START or Gravity.TOP
+            gravity = if (side == "left") Gravity.START or Gravity.TOP
                       else Gravity.END or Gravity.TOP
             x = dp(2)
             y = yPos
         }
     }
 
-    private fun addHandle() {
-        val prefs = pillPrefs()
-        val oPrefs = overlayPrefs()
-        vibrationEnabled = oPrefs.vibration
+    private fun buildHandle(prefs: PillPrefs, oPrefs: OverlayPrefs, side: String): Pair<View, View> {
         val pill = View(this).apply {
             background = PullTabDrawable(highlighted = false, prefs.theme)
             alpha = prefs.opacity
         }
-        val pillGravity = if (prefs.side == "left") Gravity.START else Gravity.END
         val container = FrameLayout(this).apply {
             addView(pill, FrameLayout.LayoutParams(dp(prefs.width), FrameLayout.LayoutParams.MATCH_PARENT).apply {
-                gravity = pillGravity
+                gravity = if (side == "left") Gravity.START else Gravity.END
             })
         }
-        installSwipeListener(container, oPrefs.sensitivity)
-        wm.addView(container, handleParams(prefs))
-        handleView = container
-        pillInnerView = pill
+        installSwipeListener(container, oPrefs.sensitivity, side)
+        wm.addView(container, handleParams(prefs, side))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             container.post {
                 container.systemGestureExclusionRects = listOf(
@@ -285,28 +291,78 @@ class SidebarOverlayService : Service() {
                 )
             }
         }
+        return Pair(container, pill)
+    }
+
+    private fun addHandle() {
+        val prefs = pillPrefs()
+        val oPrefs = overlayPrefs()
+        vibrationEnabled = oPrefs.vibration
+        val primarySide = if (prefs.side == "both") "left" else prefs.side
+        val (c, p) = buildHandle(prefs, oPrefs, primarySide)
+        handleView = c; pillInnerView = p
+        if (prefs.side == "both") {
+            val (cR, pR) = buildHandle(prefs, oPrefs, "right")
+            handleViewAlt = cR; pillInnerViewAlt = pR
+            lastActiveSide = "right"
+        }
         if (oPrefs.autoHideFullscreen) {
             fsHandler.removeCallbacks(fsRunnable)
             fsHandler.post(fsRunnable)
         }
     }
 
-    private fun installSwipeListener(handle: View, sensitivityDp: Int = 16) {
+    private fun installSwipeListener(handle: View, sensitivityDp: Int = 16, triggerSide: String = "right") {
         var downX = 0f
         var downY = 0f
+        var lastTapTime = 0L
         handle.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; true }
                 MotionEvent.ACTION_UP -> {
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
-                    if (Math.abs(dx) >= dp(sensitivityDp) && Math.abs(dx) > Math.abs(dy)) toggle()
+                    val adx = Math.abs(dx)
+                    val ady = Math.abs(dy)
+                    val threshold = dp(sensitivityDp)
+                    val oPrefs = overlayPrefs()
+                    when {
+                        adx >= threshold && adx > ady -> { lastActiveSide = triggerSide; toggle() }
+                        ady >= threshold && ady > adx && dy < 0 -> executeGestureAction(oPrefs.gestureSwipeUp)
+                        ady >= threshold && ady > adx && dy > 0 -> executeGestureAction(oPrefs.gestureSwipeDown)
+                        adx < dp(8) && ady < dp(8) -> {
+                            val now = System.currentTimeMillis()
+                            if (now - lastTapTime < 300L) {
+                                executeGestureAction(oPrefs.gestureDoubleTap)
+                                lastTapTime = 0L
+                            } else {
+                                lastTapTime = now
+                            }
+                        }
+                    }
                     true
                 }
                 MotionEvent.ACTION_MOVE -> true
                 else -> false
             }
         }
+    }
+
+    private fun executeGestureAction(action: String) {
+        when (action) {
+            "panel"          -> toggle()
+            "notifications"  -> expandStatusBar(quick = false)
+            "quick_settings" -> expandStatusBar(quick = true)
+            "all_apps"       -> { if (!shown && !showingDrawer) showAllAppsDrawer() }
+        }
+    }
+
+    private fun expandStatusBar(quick: Boolean) {
+        try {
+            val sbm = getSystemService("statusbar")
+            val method = if (quick) "expandSettingsPanel" else "expandNotificationsPanel"
+            sbm?.javaClass?.getMethod(method)?.invoke(sbm)
+        } catch (e: Exception) { Log.w(TAG, "expandStatusBar($quick) failed", e) }
     }
 
     private fun vibrate() {
@@ -367,7 +423,7 @@ class SidebarOverlayService : Service() {
         pillInnerView?.background = PullTabDrawable(highlighted = false, prefs.theme)
         pillInnerView?.alpha = prefs.opacity
         handle.setOnTouchListener(null)
-        installSwipeListener(handle, oPrefs.sensitivity)
+        installSwipeListener(handle, oPrefs.sensitivity, lastActiveSide)
     }
 
     // ── Panel ─────────────────────────────────────────────────────────────────
@@ -381,20 +437,25 @@ class SidebarOverlayService : Service() {
         val pkgs = loadFavorites()
         val pm = packageManager
         val light = prefs.theme == "light"
+        val effectiveSide = if (prefs.side == "both") lastActiveSide else prefs.side
 
-        val qcAny = oPrefs.quickControlsEnabled &&
+        val hasQC = oPrefs.quickControlsEnabled &&
             (oPrefs.showTorch || oPrefs.showAutoRotate || oPrefs.showAutoBrightness || oPrefs.showRingerMode)
+        val hasActions = oPrefs.showAllApps || oPrefs.showEdit
+        val hasControls = hasQC || hasActions
 
         val screenHeight = resources.displayMetrics.heightPixels
         val maxPanelHeight = (screenHeight * 0.72).toInt()
+        val cols = 2
         val rows = if (pkgs.isEmpty()) 1 else (pkgs.size + 1) / 2
         val rowH = if (oPrefs.showLabels) dp(82) else dp(68)
-        // Controls strip: top+bottom padding + 2 tile rows + gap between rows
-        val controlsH = if (qcAny) dp(8) + dp(60) + dp(6) + dp(60) + dp(8) + dp(6) else 0
+        val numCtrlRows = (if (hasQC) listOf(
+            oPrefs.showTorch || oPrefs.showAutoRotate,
+            oPrefs.showAutoBrightness || oPrefs.showRingerMode
+        ).count { it } else 0) + (if (hasActions) 1 else 0)
+        val controlsH = if (hasControls) dp(8) + numCtrlRows * dp(60) + (numCtrlRows - 1) * dp(6) + dp(8) + dp(6) else 0
         val appsH = dp(4) + rows * rowH + dp(16)
-        val hasBottomBar = oPrefs.showAllApps || oPrefs.showEdit
-        val bottomBarH = if (hasBottomBar) dp(1) + dp(6) + dp(40) + dp(8) else 0
-        val panelHeight = (dp(24) + controlsH + appsH + bottomBarH).coerceAtMost(maxPanelHeight)
+        val panelHeight = (dp(24) + controlsH + appsH).coerceAtMost(maxPanelHeight)
 
         val overlay = View(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
@@ -465,7 +526,7 @@ class SidebarOverlayService : Service() {
             ).apply { marginStart = dp(8); marginEnd = dp(8); topMargin = dp(6); bottomMargin = dp(6) }
         }
 
-        if (oPrefs.quickControlsEnabled) {
+        if (hasQC) {
             val ctrlRow1 = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
@@ -489,7 +550,26 @@ class SidebarOverlayService : Service() {
                 { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
         }
-        if (qcAny && oPrefs.quickControlsPosition == "top") root.addView(controlsStrip)
+        if (hasActions) {
+            val actionsRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { if (hasQC && controlsStrip.childCount > 0) topMargin = dp(6) }
+            }
+            if (oPrefs.showAllApps) actionsRow.addView(makeControlTile("All Apps", { "⊞" }, tileBg, tileActive,
+                { false }, { "" }) { showAllAppsDrawer() })
+            if (oPrefs.showEdit) actionsRow.addView(makeControlTile("Edit", { "✏" }, tileBg, tileActive,
+                { false }, { "" }) {
+                hidePanel()
+                getSharedPreferences(Prefs.FILE, MODE_PRIVATE).edit().putString(Prefs.LAUNCH_TAB, "apps").apply()
+                packageManager.getLaunchIntentForPackage(packageName)
+                    ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) }
+                    ?.let { startActivity(it) }
+            })
+            if (actionsRow.childCount > 0) controlsStrip.addView(actionsRow)
+        }
+        if (hasControls && oPrefs.quickControlsPosition == "top") root.addView(controlsStrip)
 
         // Favorites app grid
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
@@ -509,7 +589,7 @@ class SidebarOverlayService : Service() {
         } else {
             var row: LinearLayout? = null
             for ((index, pkg) in pkgs.withIndex()) {
-                if (index % 2 == 0) {
+                if (index % cols == 0) {
                     row = LinearLayout(this).apply {
                         orientation = LinearLayout.HORIZONTAL
                         layoutParams = LinearLayout.LayoutParams(
@@ -536,11 +616,14 @@ class SidebarOverlayService : Service() {
                     }
                 }
             }
-            if (pkgs.size % 2 != 0) {
-                row?.addView(View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                })
+            val rem = pkgs.size % cols
+            if (rem != 0) {
+                repeat(cols - rem) {
+                    row?.addView(View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(
+                            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    })
+                }
             }
         }
 
@@ -548,60 +631,9 @@ class SidebarOverlayService : Service() {
         root.addView(scroll, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        if (qcAny && oPrefs.quickControlsPosition == "bottom") root.addView(controlsStrip)
+        if (hasControls && oPrefs.quickControlsPosition == "bottom") root.addView(controlsStrip)
 
-        // Bottom action bar
-        if (hasBottomBar) {
-            root.addView(View(this).apply {
-                setBackgroundColor(indClr)
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1).apply {
-                    marginStart = dp(10); marginEnd = dp(10)
-                }
-            })
-            val bottomBar = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(dp(8), dp(6), dp(8), dp(8))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            }
-            if (oPrefs.showAllApps) {
-                bottomBar.addView(TextView(this).apply {
-                    text = "⊞"
-                    textSize = 20f
-                    gravity = Gravity.CENTER
-                    setTextColor(labelColor)
-                    background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(10).toFloat() }
-                    setPadding(dp(4), dp(10), dp(4), dp(10))
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    isClickable = true; isFocusable = true
-                    setOnClickListener { showAllAppsDrawer() }
-                })
-            }
-            if (oPrefs.showEdit) {
-                bottomBar.addView(TextView(this).apply {
-                    text = "✏"
-                    textSize = 20f
-                    gravity = Gravity.CENTER
-                    setTextColor(labelColor)
-                    background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(10).toFloat() }
-                    setPadding(dp(4), dp(10), dp(4), dp(10))
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                        if (oPrefs.showAllApps) marginStart = dp(4)
-                    }
-                    isClickable = true; isFocusable = true
-                    setOnClickListener {
-                        hidePanel()
-                        getSharedPreferences(Prefs.FILE, MODE_PRIVATE).edit().putString(Prefs.LAUNCH_TAB, "apps").apply()
-                        packageManager.getLaunchIntentForPackage(packageName)
-                            ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) }
-                            ?.let { startActivity(it) }
-                    }
-                })
-            }
-            root.addView(bottomBar)
-        }
-
-        val panelGravity = if (prefs.side == "left") Gravity.START or Gravity.CENTER_VERTICAL
+        val panelGravity = if (effectiveSide == "left") Gravity.START or Gravity.CENTER_VERTICAL
                            else Gravity.END or Gravity.CENTER_VERTICAL
         wm.addView(root, WindowManager.LayoutParams(
             dp(200), panelHeight,
@@ -614,8 +646,9 @@ class SidebarOverlayService : Service() {
 
         panelView = root
         handleView?.visibility = View.INVISIBLE
+        handleViewAlt?.visibility = View.INVISIBLE
 
-        val slideFrom = if (prefs.side == "left") -dp(216).toFloat() else dp(216).toFloat()
+        val slideFrom = if (effectiveSide == "left") -dp(216).toFloat() else dp(216).toFloat()
         root.translationX = slideFrom
         root.alpha = 0f
         root.scaleX = 0.94f
@@ -632,17 +665,22 @@ class SidebarOverlayService : Service() {
         val panel = panelView ?: run {
             dismissOverlay?.let { runCatching { wm.removeViewImmediate(it) } }
             dismissOverlay = null
-            if (dragState == DragState.IDLE) handleView?.visibility = View.VISIBLE
+            if (dragState == DragState.IDLE) {
+                handleView?.visibility = View.VISIBLE
+                handleViewAlt?.visibility = View.VISIBLE
+            }
             return
         }
         panelView = null
-        val side = pillPrefs().side
+        val prefs = pillPrefs()
+        val effectiveSide = if (prefs.side == "both") lastActiveSide else prefs.side
         val overlay = dismissOverlay
         dismissOverlay = null
         val handle = handleView
+        val handleAlt = handleViewAlt
         val wasDrag = dragState == DragState.DRAGGING
 
-        val slideTo = if (side == "left") -dp(216).toFloat() else dp(216).toFloat()
+        val slideTo = if (effectiveSide == "left") -dp(216).toFloat() else dp(216).toFloat()
         panel.animate()
             .translationX(slideTo).alpha(0f).scaleX(0.94f).scaleY(0.94f)
             .setDuration(200).setInterpolator(AccelerateInterpolator(1.5f))
@@ -650,7 +688,10 @@ class SidebarOverlayService : Service() {
                 panel.alpha = 0f
                 runCatching { wm.removeViewImmediate(panel) }
                 overlay?.let { runCatching { wm.removeViewImmediate(it) } }
-                if (!wasDrag && !showingDrawer) handle?.visibility = View.VISIBLE
+                if (!wasDrag && !showingDrawer) {
+                    handle?.visibility = View.VISIBLE
+                    handleAlt?.visibility = View.VISIBLE
+                }
             }
             .start()
     }
@@ -856,7 +897,10 @@ class SidebarOverlayService : Service() {
         allAppsDismissOverlay = null
         val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
         imm.hideSoftInputFromWindow(drawer.windowToken, 0)
-        if (dragState == DragState.IDLE) handleView?.visibility = View.VISIBLE
+        if (dragState == DragState.IDLE) {
+            handleView?.visibility = View.VISIBLE
+            handleViewAlt?.visibility = View.VISIBLE
+        }
         drawer.animate().alpha(0f).scaleX(0.92f).scaleY(0.92f)
             .setDuration(180).setInterpolator(AccelerateInterpolator(1.5f))
             .withEndAction {
