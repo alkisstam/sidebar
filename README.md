@@ -8,7 +8,7 @@ An Android overlay sidebar for quick access to favorite apps. A pull-tab handle 
 - Pill gestures: swipe up, swipe down, and double tap each map to a configurable action — open panel, expand notifications, expand quick settings, or open all apps
 - Floating panel with a unified controls strip containing quick-control tiles (torch, auto-rotate, auto-brightness, ringer mode) alongside All Apps and Edit action tiles; the entire strip positions at the top or bottom of the panel
 - All Apps drawer: centered overlay with a 4-column alphabetical grid of all installed apps and a live search bar
-- Long-press any app icon to open a context menu with Open or Split Screen options (split screen works on stock Android)
+- Long-press any app icon to open a context menu with Open or Floating Window options; Floating Window launches the app in a resizable freeform window (works on stock Android with desktop/freeform mode enabled)
 - Drag-to-reorder favorites via long-press on the drag indicator in the open panel; tap any app to launch it
 - Persists across reboots via a foreground service and boot receiver
 - Auto-hides in fullscreen apps (configurable); battery-friendly polling that pauses when the screen is off
