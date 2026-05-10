@@ -37,6 +37,7 @@ class SidebarOverlayService : Service() {
     private var dismissOverlay: View? = null
     private var allAppsView: View? = null
     private var allAppsDismissOverlay: View? = null
+    private var contextMenuView: View? = null
     private var showingDrawer = false
     private var shown = false
     private var dragState = DragState.IDLE
@@ -183,7 +184,9 @@ class SidebarOverlayService : Service() {
         val showAutoRotate: Boolean,
         val showAutoBrightness: Boolean,
         val showRingerMode: Boolean,
-        val floatingWindow: Boolean
+        val showAllApps: Boolean,
+        val showEdit: Boolean,
+        val quickControlsPosition: String
     )
 
     private fun pillPrefs(): PillPrefs {
@@ -229,7 +232,9 @@ class SidebarOverlayService : Service() {
             p.getBoolean(Prefs.SHOW_AUTO_ROTATE, true),
             p.getBoolean(Prefs.SHOW_AUTO_BRIGHTNESS, true),
             p.getBoolean(Prefs.SHOW_RINGER_MODE, true),
-            p.getBoolean(Prefs.FLOATING_WINDOW, false)
+            p.getBoolean(Prefs.SHOW_ALL_APPS, true),
+            p.getBoolean(Prefs.SHOW_EDIT, true),
+            p.getString(Prefs.QUICK_CONTROLS_POSITION, "bottom") ?: "bottom"
         )
     }
 
@@ -387,7 +392,8 @@ class SidebarOverlayService : Service() {
         // Controls strip: top+bottom padding + 2 tile rows + gap between rows
         val controlsH = if (qcAny) dp(8) + dp(60) + dp(6) + dp(60) + dp(8) + dp(6) else 0
         val appsH = dp(4) + rows * rowH + dp(16)
-        val bottomBarH = dp(1) + dp(6) + dp(40) + dp(8) // divider + padding + btn + padding
+        val hasBottomBar = oPrefs.showAllApps || oPrefs.showEdit
+        val bottomBarH = if (hasBottomBar) dp(1) + dp(6) + dp(40) + dp(8) else 0
         val panelHeight = (dp(24) + controlsH + appsH + bottomBarH).coerceAtMost(maxPanelHeight)
 
         val overlay = View(this).apply {
@@ -456,7 +462,7 @@ class SidebarOverlayService : Service() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { marginStart = dp(8); marginEnd = dp(8); bottomMargin = dp(6) }
+            ).apply { marginStart = dp(8); marginEnd = dp(8); topMargin = dp(6); bottomMargin = dp(6) }
         }
 
         if (oPrefs.quickControlsEnabled) {
@@ -483,7 +489,7 @@ class SidebarOverlayService : Service() {
                 { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
         }
-        if (qcAny) root.addView(controlsStrip)
+        if (qcAny && oPrefs.quickControlsPosition == "top") root.addView(controlsStrip)
 
         // Favorites app grid
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
@@ -542,50 +548,58 @@ class SidebarOverlayService : Service() {
         root.addView(scroll, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
+        if (qcAny && oPrefs.quickControlsPosition == "bottom") root.addView(controlsStrip)
+
         // Bottom action bar
-        root.addView(View(this).apply {
-            setBackgroundColor(indClr)
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1).apply {
-                marginStart = dp(10); marginEnd = dp(10)
+        if (hasBottomBar) {
+            root.addView(View(this).apply {
+                setBackgroundColor(indClr)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1).apply {
+                    marginStart = dp(10); marginEnd = dp(10)
+                }
+            })
+            val bottomBar = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(dp(8), dp(6), dp(8), dp(8))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             }
-        })
-        val bottomBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(8), dp(6), dp(8), dp(8))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
-        val allAppsBtn = TextView(this).apply {
-            text = "All Apps"
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setTextColor(labelColor)
-            background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(10).toFloat() }
-            setPadding(dp(4), dp(10), dp(4), dp(10))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            isClickable = true; isFocusable = true
-            setOnClickListener { showAllAppsDrawer() }
-        }
-        val editBtn = TextView(this).apply {
-            text = "Edit"
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setTextColor(labelColor)
-            background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(10).toFloat() }
-            setPadding(dp(4), dp(10), dp(4), dp(10))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4) }
-            isClickable = true; isFocusable = true
-            setOnClickListener {
-                hidePanel()
-                getSharedPreferences(Prefs.FILE, MODE_PRIVATE).edit().putString(Prefs.LAUNCH_TAB, "apps").apply()
-                packageManager.getLaunchIntentForPackage(packageName)
-                    ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) }
-                    ?.let { startActivity(it) }
+            if (oPrefs.showAllApps) {
+                bottomBar.addView(TextView(this).apply {
+                    text = "⊞"
+                    textSize = 20f
+                    gravity = Gravity.CENTER
+                    setTextColor(labelColor)
+                    background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(10).toFloat() }
+                    setPadding(dp(4), dp(10), dp(4), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    isClickable = true; isFocusable = true
+                    setOnClickListener { showAllAppsDrawer() }
+                })
             }
+            if (oPrefs.showEdit) {
+                bottomBar.addView(TextView(this).apply {
+                    text = "✏"
+                    textSize = 20f
+                    gravity = Gravity.CENTER
+                    setTextColor(labelColor)
+                    background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(10).toFloat() }
+                    setPadding(dp(4), dp(10), dp(4), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        if (oPrefs.showAllApps) marginStart = dp(4)
+                    }
+                    isClickable = true; isFocusable = true
+                    setOnClickListener {
+                        hidePanel()
+                        getSharedPreferences(Prefs.FILE, MODE_PRIVATE).edit().putString(Prefs.LAUNCH_TAB, "apps").apply()
+                        packageManager.getLaunchIntentForPackage(packageName)
+                            ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) }
+                            ?.let { startActivity(it) }
+                    }
+                })
+            }
+            root.addView(bottomBar)
         }
-        bottomBar.addView(allAppsBtn)
-        bottomBar.addView(editBtn)
-        root.addView(bottomBar)
 
         val panelGravity = if (prefs.side == "left") Gravity.START or Gravity.CENTER_VERTICAL
                            else Gravity.END or Gravity.CENTER_VERTICAL
@@ -1017,6 +1031,7 @@ class SidebarOverlayService : Service() {
             isFocusable = true
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             setOnClickListener { onClick() }
+            setOnLongClickListener { showAppContextMenu(pkg, name, it); true }
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN ->
@@ -1068,25 +1083,111 @@ class SidebarOverlayService : Service() {
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
-            if (overlayPrefs().floatingWindow) {
-                val metrics = wm.currentWindowMetrics.bounds
-                val sw = metrics.width()
-                val sh = metrics.height()
-                val w = (sw * 0.75f).toInt()
-                val h = (sh * 0.65f).toInt()
-                val left = (sw - w) / 2
-                val top = (sh - h) / 4
-                val opts = ActivityOptions.makeBasic().apply {
-                    launchBounds = Rect(left, top, left + w, top + h)
-                }
-                startActivity(intent, opts.toBundle())
-            } else {
-                startActivity(intent)
-            }
+            startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to launch $pkg", e)
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(this, "Failed to launch app", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showAppContextMenu(pkg: String, name: String, anchor: View) {
+        hideContextMenu()
+        val prefs = pillPrefs()
+        val light = prefs.theme == "light"
+        val panelBg = resolvePanelBg(prefs.panelColor, 252, light)
+        val effectiveLight = if (prefs.panelColor.isNotEmpty()) {
+            val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
+        } else light
+        val tileBg = if (effectiveLight) Color.argb(220, 231, 224, 236) else Color.argb(220, 55, 52, 62)
+        val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31) else Color.argb(230, 230, 225, 229)
+
+        val loc = IntArray(2)
+        anchor.getLocationOnScreen(loc)
+        val dm = resources.displayMetrics
+        val menuW = dp(180)
+        var mx = loc[0] + anchor.width / 2 - menuW / 2
+        var my = loc[1] + anchor.height / 2
+        mx = mx.coerceIn(dp(8), dm.widthPixels - menuW - dp(8))
+        my = my.coerceIn(dp(8), dm.heightPixels - dp(140))
+
+        val menu = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply { setColor(panelBg); cornerRadius = dp(16).toFloat() }
+            elevation = dp(10).toFloat()
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+        }
+        menu.addView(TextView(this).apply {
+            text = name
+            textSize = 12f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(Color.argb(160, Color.red(labelColor), Color.green(labelColor), Color.blue(labelColor)))
+            setPadding(dp(14), dp(10), dp(14), dp(6))
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        })
+        menu.addView(View(this).apply {
+            setBackgroundColor(Color.argb(30, 0, 0, 0))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1).apply {
+                setMargins(dp(8), dp(2), dp(8), dp(2))
+            }
+        })
+        fun item(label: String, action: () -> Unit) = TextView(this).apply {
+            text = label
+            textSize = 14f
+            setTextColor(labelColor)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            isClickable = true; isFocusable = true
+            background = GradientDrawable().apply { setColor(Color.TRANSPARENT); cornerRadius = dp(12).toFloat() }
+            setOnClickListener { hideContextMenu(); action() }
+        }
+        menu.addView(item("Open") { doLaunch(pkg) })
+        menu.addView(item("Split Screen") { doLaunchSplit(pkg) })
+
+        val container = FrameLayout(this).apply {
+            setOnClickListener { hideContextMenu() }
+            addView(menu, FrameLayout.LayoutParams(menuW, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+                leftMargin = mx; topMargin = my
+            })
+        }
+        wm.addView(container, WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
+        ))
+        contextMenuView = container
+        menu.alpha = 0f; menu.scaleX = 0.88f; menu.scaleY = 0.88f
+        menu.animate().alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(200).setInterpolator(OvershootInterpolator(1.5f)).start()
+    }
+
+    private fun hideContextMenu() {
+        contextMenuView?.let { runCatching { wm.removeView(it) } }
+        contextMenuView = null
+    }
+
+    private fun doLaunchSplit(pkg: String) {
+        vibrate()
+        val intent = packageManager.getLaunchIntentForPackage(pkg)
+        if (intent == null) {
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(this, "Can't open this app", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+        val opts = ActivityOptions.makeBasic()
+        try {
+            ActivityOptions::class.java
+                .getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
+                .invoke(opts, 4) // WINDOWING_MODE_SPLIT_SCREEN_SECONDARY = 4
+        } catch (_: Exception) {}
+        try {
+            startActivity(intent, opts.toBundle())
+        } catch (e: Exception) {
+            Log.e(TAG, "Split screen launch failed for $pkg", e)
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(this, "Split screen not supported", Toast.LENGTH_SHORT).show()
             }
         }
     }

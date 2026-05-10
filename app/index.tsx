@@ -27,6 +27,7 @@ import DraggableFlatList, {
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
 import Sidebar, { InstalledApp, OverlaySettings, PillSettings } from "../modules/sidebar";
+import ColorPicker, { HueCircular, Panel1 } from "reanimated-color-picker";
 
 type Tab = "handle" | "behavior" | "control" | "apps";
 type FavItem = { key: string; name: string; icon: string | null };
@@ -55,12 +56,13 @@ const PANEL_COLORS: { key: string }[] = [
 const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,
   quickControlsEnabled: true, showTorch: true, showAutoRotate: true, showAutoBrightness: true, showRingerMode: true,
-  floatingWindow: false,
+  showAllApps: true, showEdit: true, quickControlsPosition: 'bottom',
 };
 
 export default function Index() {
-  const scheme = useColorScheme();
-  const colors = makeColors(scheme);
+  const systemScheme = useColorScheme();
+  const [appTheme, setAppTheme] = useState<'light' | 'dark'>(systemScheme ?? 'dark');
+  const colors = makeColors(appTheme);
 
   const [activeTab, setActiveTab] = useState<Tab>("handle");
   const activeTabRef = useRef<Tab>("handle");
@@ -140,6 +142,7 @@ export default function Index() {
       setPermissionGranted(perm);
       setServiceEnabled(svc);
       setPill(pillSettings);
+      setAppTheme(pillSettings.theme);
       setOverlay(overlaySettings);
       setDndPerm(dnd);
       setWritePerm(write);
@@ -338,7 +341,7 @@ export default function Index() {
                   <Pressable
                     key={t}
                     style={[s.segBtn, pill.theme === t && s.segBtnActive]}
-                    onPress={() => setPill(p => ({ ...p, theme: t }))}
+                    onPress={() => { setPill(p => ({ ...p, theme: t })); setAppTheme(t); }}
                   >
                     <Text style={[s.segBtnText, pill.theme === t && s.segBtnTextActive]}>
                       {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -398,35 +401,50 @@ export default function Index() {
                   })()}
                 </View>
                 {showHexInput && (
-                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 8 }}>
-                    <TextInput
-                      value={hexInput}
-                      onChangeText={setHexInput}
-                      placeholder="#RRGGBB"
-                      placeholderTextColor={colors.subtext}
-                      autoCapitalize="characters"
-                      maxLength={7}
-                      style={[s.search, { flex: 1, marginHorizontal: 0, marginBottom: 0, paddingVertical: 8 }]}
-                      onSubmitEditing={() => {
-                        const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
-                        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-                          setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
-                          setShowHexInput(false);
-                        }
-                      }}
-                    />
-                    <Pressable
-                      style={s.grantBtn}
-                      onPress={() => {
-                        const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
-                        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-                          setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
-                          setShowHexInput(false);
-                        }
+                  <View style={{ marginTop: 12 }}>
+                    <ColorPicker
+                      value={/^#[0-9A-Fa-f]{6}$/.test(pill.panelColor) ? pill.panelColor : '#6750A4'}
+                      onChangeJS={({ hex }) => setHexInput(hex.toUpperCase())}
+                      onCompleteJS={({ hex }) => {
+                        const h = hex.toUpperCase();
+                        setPill(p => ({ ...p, panelColor: h }));
+                        setHexInput(h);
                       }}
                     >
-                      <Text style={s.grantBtnText}>Apply</Text>
-                    </Pressable>
+                      <HueCircular style={{ alignSelf: "center", height: 220 }} containerStyle={{ backgroundColor: colors.surfaceContainer, justifyContent: "center", alignItems: "center" }}>
+                        <Panel1 style={{ height: 114, width: 114 }} />
+                      </HueCircular>
+                    </ColorPicker>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 8 }}>
+                      <TextInput
+                        value={hexInput}
+                        onChangeText={setHexInput}
+                        placeholder="#RRGGBB"
+                        placeholderTextColor={colors.subtext}
+                        autoCapitalize="characters"
+                        maxLength={7}
+                        style={[s.search, { flex: 1, marginHorizontal: 0, marginBottom: 0, paddingVertical: 8 }]}
+                        onSubmitEditing={() => {
+                          const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
+                          if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                            setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
+                            setShowHexInput(false);
+                          }
+                        }}
+                      />
+                      <Pressable
+                        style={s.grantBtn}
+                        onPress={() => {
+                          const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
+                          if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                            setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
+                            setShowHexInput(false);
+                          }
+                        }}
+                      >
+                        <Text style={s.grantBtnText}>Apply</Text>
+                      </Pressable>
+                    </View>
                   </View>
                 )}
               </View>
@@ -493,18 +511,6 @@ export default function Index() {
               />
             </View>
             <View style={s.separator} />
-            <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowLabel}>Floating window</Text>
-                <Text style={s.rowSub}>Open apps in a floating window (requires freeform mode)</Text>
-              </View>
-              <Switch
-                value={overlay.floatingWindow}
-                onValueChange={v => setOverlay(p => ({ ...p, floatingWindow: v }))}
-                trackColor={{ true: colors.tint }}
-              />
-            </View>
-            <View style={s.separator} />
             <SliderRow label="Sensitivity" min={8} max={48} step={1}
               value={overlay.sensitivity} display={`${overlay.sensitivity}`}
               leftEdge="High" rightEdge="Low"
@@ -565,6 +571,41 @@ export default function Index() {
                   onValueChange={v => setOverlay(p => ({ ...p, showRingerMode: v }))}
                   trackColor={{ true: colors.tint }}
                 />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>All Apps</Text>
+                <Switch
+                  value={overlay.showAllApps}
+                  onValueChange={v => setOverlay(p => ({ ...p, showAllApps: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Edit</Text>
+                <Switch
+                  value={overlay.showEdit}
+                  onValueChange={v => setOverlay(p => ({ ...p, showEdit: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={[s.settingRow, { paddingStart: 32 }]}>
+                <Text style={[s.settingLabel, { width: 64 }]}>Position</Text>
+                <View style={s.segmented}>
+                  {(["top", "bottom"] as const).map(pos => (
+                    <Pressable
+                      key={pos}
+                      style={[s.segBtn, overlay.quickControlsPosition === pos && s.segBtnActive]}
+                      onPress={() => setOverlay(p => ({ ...p, quickControlsPosition: pos }))}
+                    >
+                      <Text style={[s.segBtnText, overlay.quickControlsPosition === pos && s.segBtnTextActive]}>
+                        {pos.charAt(0).toUpperCase() + pos.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             </>}
           </View>

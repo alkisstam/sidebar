@@ -21,5 +21,7 @@ internal object Prefs {
     const val SHOW_AUTO_BRIGHTNESS = "show_auto_brightness"
     const val SHOW_RINGER_MODE = "show_ringer_mode"
     const val LAUNCH_TAB = "launch_tab"
-    const val FLOATING_WINDOW = "floating_window"
+    const val SHOW_ALL_APPS = "show_all_apps"
+    const val SHOW_EDIT = "show_edit"
+    const val QUICK_CONTROLS_POSITION = "quick_controls_position"
 }

@@ -174,7 +174,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putBoolean("showAutoRotate", prefs.getBoolean(Prefs.SHOW_AUTO_ROTATE, true))
         map.putBoolean("showAutoBrightness", prefs.getBoolean(Prefs.SHOW_AUTO_BRIGHTNESS, true))
         map.putBoolean("showRingerMode", prefs.getBoolean(Prefs.SHOW_RINGER_MODE, true))
-        map.putBoolean("floatingWindow", prefs.getBoolean(Prefs.FLOATING_WINDOW, false))
+        map.putBoolean("showAllApps", prefs.getBoolean(Prefs.SHOW_ALL_APPS, true))
+        map.putBoolean("showEdit", prefs.getBoolean(Prefs.SHOW_EDIT, true))
+        map.putString("quickControlsPosition", prefs.getString(Prefs.QUICK_CONTROLS_POSITION, "bottom") ?: "bottom")
         promise.resolve(map)
     }
 
@@ -190,7 +192,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("showAutoRotate")) prefs.putBoolean(Prefs.SHOW_AUTO_ROTATE, settings.getBoolean("showAutoRotate"))
         if (settings.hasKey("showAutoBrightness")) prefs.putBoolean(Prefs.SHOW_AUTO_BRIGHTNESS, settings.getBoolean("showAutoBrightness"))
         if (settings.hasKey("showRingerMode")) prefs.putBoolean(Prefs.SHOW_RINGER_MODE, settings.getBoolean("showRingerMode"))
-        if (settings.hasKey("floatingWindow")) prefs.putBoolean(Prefs.FLOATING_WINDOW, settings.getBoolean("floatingWindow"))
+        if (settings.hasKey("showAllApps")) prefs.putBoolean(Prefs.SHOW_ALL_APPS, settings.getBoolean("showAllApps"))
+        if (settings.hasKey("showEdit")) prefs.putBoolean(Prefs.SHOW_EDIT, settings.getBoolean("showEdit"))
+        if (settings.hasKey("quickControlsPosition")) prefs.putString(Prefs.QUICK_CONTROLS_POSITION, settings.getString("quickControlsPosition"))
         prefs.apply()
         val intent = Intent(reactContext, SidebarOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

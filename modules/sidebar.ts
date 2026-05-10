@@ -28,7 +28,9 @@ export interface OverlaySettings {
   showAutoRotate: boolean;
   showAutoBrightness: boolean;
   showRingerMode: boolean;
-  floatingWindow: boolean;
+  showAllApps: boolean;
+  showEdit: boolean;
+  quickControlsPosition: 'top' | 'bottom';
 }
 
 export default {
