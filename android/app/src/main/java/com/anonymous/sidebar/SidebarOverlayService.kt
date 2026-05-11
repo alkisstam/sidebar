@@ -678,9 +678,8 @@ class SidebarOverlayService : Service() {
         root.addView(scroll, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        val shouldCollapse = numCtrlRows >= 2
         if (hasControls && oPrefs.quickControlsPosition == "bottom") {
-            if (shouldCollapse) {
+            if (hasQC) {
                 ctrlFullH = controlsH - dp(6)
                 controlsExpanded = false
                 val wrapper = FrameLayout(this).apply {
@@ -698,20 +697,33 @@ class SidebarOverlayService : Service() {
             }
         }
 
-        val chevronTextView = if (shouldCollapse && hasControls && oPrefs.quickControlsPosition == "bottom") {
-            TextView(this).apply {
+        if (hasQC && hasControls && oPrefs.quickControlsPosition == "bottom") {
+            val chevronTv = TextView(this).apply {
                 text = "∧"
                 textSize = 10f
                 gravity = Gravity.CENTER
                 setTextColor(indClr)
                 layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, dp(20)
-                )
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(22))
             }
-        } else null
-        ctrlChevronView = chevronTextView
+            ctrlChevronView = chevronTv
 
-        if (chevronTextView != null) {
+            val handle = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            }
+            handle.addView(chevronTv)
+            handle.addView(TextView(this).apply {
+                text = "Controls"
+                textSize = 8f
+                gravity = Gravity.CENTER
+                setTextColor(indClr)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(14))
+            })
+
             val gd = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
                     if (e1 == null) return false
@@ -721,10 +733,9 @@ class SidebarOverlayService : Service() {
                     if (dy > 0 && controlsExpanded)  { animateControls(); return true }
                     return false
                 }
-                override fun onSingleTapUp(e: MotionEvent): Boolean { animateControls(); return true }
             })
-            chevronTextView.setOnTouchListener { _, event -> gd.onTouchEvent(event) }
-            root.addView(chevronTextView)
+            handle.setOnTouchListener { _, event -> gd.onTouchEvent(event) }
+            root.addView(handle)
         }
 
         val panelGravity = if (effectiveSide == "left") Gravity.START or Gravity.CENTER_VERTICAL
