@@ -831,8 +831,8 @@ class SidebarOverlayService : Service() {
         val p = pillPrefs()
         val light = p.theme == "light"
         val dm = resources.displayMetrics
-        val drawerW = (dm.widthPixels * 0.9).toInt()
-        val drawerH = (dm.heightPixels * 0.82).toInt()
+        val drawerW = (dm.widthPixels * 0.8).toInt()
+        val drawerH = (dm.heightPixels * 0.72).toInt()
 
         val panelBg    = resolvePanelBg(p.panelColor, 252, light)
         val effectiveLight = if (p.panelColor.isNotEmpty()) {
