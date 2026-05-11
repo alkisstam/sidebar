@@ -56,7 +56,7 @@ const PANEL_COLORS: { key: string }[] = [
 const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,
   quickControlsEnabled: true, showTorch: true, showAutoRotate: true, showAutoBrightness: true, showRingerMode: true,
-  showAllApps: true, showEdit: true, quickControlsPosition: 'bottom',
+  showAllApps: true, showEdit: true,
   gestureSwipeUp: 'none', gestureSwipeDown: 'notifications', gestureDoubleTap: 'none',
   showBrightnessSlider: false, showVolumeSlider: false,
 };
@@ -639,23 +639,6 @@ export default function Index() {
                   onValueChange={v => setOverlay(p => ({ ...p, showEdit: v }))}
                   trackColor={{ true: colors.tint }}
                 />
-              </View>
-              <View style={s.separator} />
-              <View style={[s.settingRow, { paddingStart: 32 }]}>
-                <Text style={[s.settingLabel, { width: 64 }]}>Position</Text>
-                <View style={s.segmented}>
-                  {(["top", "bottom"] as const).map(pos => (
-                    <Pressable
-                      key={pos}
-                      style={[s.segBtn, overlay.quickControlsPosition === pos && s.segBtnActive]}
-                      onPress={() => setOverlay(p => ({ ...p, quickControlsPosition: pos }))}
-                    >
-                      <Text style={[s.segBtnText, overlay.quickControlsPosition === pos && s.segBtnTextActive]}>
-                        {pos.charAt(0).toUpperCase() + pos.slice(1)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
               </View>
             </>}
           </View>

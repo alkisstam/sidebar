@@ -199,7 +199,6 @@ class SidebarOverlayService : Service() {
         val showRingerMode: Boolean,
         val showAllApps: Boolean,
         val showEdit: Boolean,
-        val quickControlsPosition: String,
         val gestureSwipeUp: String,
         val gestureSwipeDown: String,
         val gestureDoubleTap: String,
@@ -252,7 +251,6 @@ class SidebarOverlayService : Service() {
             p.getBoolean(Prefs.SHOW_RINGER_MODE, true),
             p.getBoolean(Prefs.SHOW_ALL_APPS, true),
             p.getBoolean(Prefs.SHOW_EDIT, true),
-            p.getString(Prefs.QUICK_CONTROLS_POSITION, "bottom") ?: "bottom",
             p.getString(Prefs.GESTURE_SWIPE_UP, "none") ?: "none",
             p.getString(Prefs.GESTURE_SWIPE_DOWN, "notifications") ?: "notifications",
             p.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none",
@@ -616,7 +614,6 @@ class SidebarOverlayService : Service() {
             })
             if (actionsRow.childCount > 0) controlsStrip.addView(actionsRow)
         }
-        if (hasControls && oPrefs.quickControlsPosition == "top") root.addView(controlsStrip)
 
         // Favorites app grid
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
@@ -678,7 +675,7 @@ class SidebarOverlayService : Service() {
         root.addView(scroll, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        if (hasControls && oPrefs.quickControlsPosition == "bottom") {
+        if (hasControls) {
             if (hasQC) {
                 ctrlFullH = controlsH - dp(6)
                 controlsExpanded = false
@@ -697,7 +694,7 @@ class SidebarOverlayService : Service() {
             }
         }
 
-        if (hasQC && hasControls && oPrefs.quickControlsPosition == "bottom") {
+        if (hasQC && hasControls) {
             val chevronTv = TextView(this).apply {
                 text = "∧"
                 textSize = 10f

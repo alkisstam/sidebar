@@ -30,7 +30,6 @@ export interface OverlaySettings {
   showRingerMode: boolean;
   showAllApps: boolean;
   showEdit: boolean;
-  quickControlsPosition: 'top' | 'bottom';
   gestureSwipeUp: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
   gestureSwipeDown: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
   gestureDoubleTap: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
