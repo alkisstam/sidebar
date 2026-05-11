@@ -58,6 +58,7 @@ const DEFAULT_OVERLAY: OverlaySettings = {
   quickControlsEnabled: true, showTorch: true, showAutoRotate: true, showAutoBrightness: true, showRingerMode: true,
   showAllApps: true, showEdit: true, quickControlsPosition: 'bottom',
   gestureSwipeUp: 'none', gestureSwipeDown: 'notifications', gestureDoubleTap: 'none',
+  showBrightnessSlider: false, showVolumeSlider: false,
 };
 
 export default function Index() {
@@ -600,6 +601,24 @@ export default function Index() {
                 <Switch
                   value={overlay.showRingerMode}
                   onValueChange={v => setOverlay(p => ({ ...p, showRingerMode: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Brightness slider</Text>
+                <Switch
+                  value={overlay.showBrightnessSlider}
+                  onValueChange={v => setOverlay(p => ({ ...p, showBrightnessSlider: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Volume slider</Text>
+                <Switch
+                  value={overlay.showVolumeSlider}
+                  onValueChange={v => setOverlay(p => ({ ...p, showVolumeSlider: v }))}
                   trackColor={{ true: colors.tint }}
                 />
               </View>

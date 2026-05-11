@@ -27,4 +27,6 @@ internal object Prefs {
     const val GESTURE_SWIPE_UP = "gesture_swipe_up"
     const val GESTURE_SWIPE_DOWN = "gesture_swipe_down"
     const val GESTURE_DOUBLE_TAP = "gesture_double_tap"
+    const val SHOW_BRIGHTNESS_SLIDER = "show_brightness_slider"
+    const val SHOW_VOLUME_SLIDER = "show_volume_slider"
 }

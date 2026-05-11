@@ -180,6 +180,8 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putString("gestureSwipeUp", prefs.getString(Prefs.GESTURE_SWIPE_UP, "none") ?: "none")
         map.putString("gestureSwipeDown", prefs.getString(Prefs.GESTURE_SWIPE_DOWN, "notifications") ?: "notifications")
         map.putString("gestureDoubleTap", prefs.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none")
+        map.putBoolean("showBrightnessSlider", prefs.getBoolean(Prefs.SHOW_BRIGHTNESS_SLIDER, false))
+        map.putBoolean("showVolumeSlider", prefs.getBoolean(Prefs.SHOW_VOLUME_SLIDER, false))
         promise.resolve(map)
     }
 
@@ -201,6 +203,8 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("gestureSwipeUp")) prefs.putString(Prefs.GESTURE_SWIPE_UP, settings.getString("gestureSwipeUp"))
         if (settings.hasKey("gestureSwipeDown")) prefs.putString(Prefs.GESTURE_SWIPE_DOWN, settings.getString("gestureSwipeDown"))
         if (settings.hasKey("gestureDoubleTap")) prefs.putString(Prefs.GESTURE_DOUBLE_TAP, settings.getString("gestureDoubleTap"))
+        if (settings.hasKey("showBrightnessSlider")) prefs.putBoolean(Prefs.SHOW_BRIGHTNESS_SLIDER, settings.getBoolean("showBrightnessSlider"))
+        if (settings.hasKey("showVolumeSlider")) prefs.putBoolean(Prefs.SHOW_VOLUME_SLIDER, settings.getBoolean("showVolumeSlider"))
         prefs.apply()
         val intent = Intent(reactContext, SidebarOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

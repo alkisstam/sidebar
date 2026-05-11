@@ -202,7 +202,9 @@ class SidebarOverlayService : Service() {
         val quickControlsPosition: String,
         val gestureSwipeUp: String,
         val gestureSwipeDown: String,
-        val gestureDoubleTap: String
+        val gestureDoubleTap: String,
+        val showBrightnessSlider: Boolean,
+        val showVolumeSlider: Boolean
     )
 
     private fun pillPrefs(): PillPrefs {
@@ -253,7 +255,9 @@ class SidebarOverlayService : Service() {
             p.getString(Prefs.QUICK_CONTROLS_POSITION, "bottom") ?: "bottom",
             p.getString(Prefs.GESTURE_SWIPE_UP, "none") ?: "none",
             p.getString(Prefs.GESTURE_SWIPE_DOWN, "notifications") ?: "notifications",
-            p.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none"
+            p.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none",
+            p.getBoolean(Prefs.SHOW_BRIGHTNESS_SLIDER, false),
+            p.getBoolean(Prefs.SHOW_VOLUME_SLIDER, false)
         )
     }
 
@@ -281,7 +285,7 @@ class SidebarOverlayService : Service() {
 
     private fun buildHandle(prefs: PillPrefs, oPrefs: OverlayPrefs, side: String): Pair<View, View> {
         val pill = View(this).apply {
-            background = PullTabDrawable(highlighted = false, prefs.theme)
+            background = PullTabDrawable(highlighted = false, prefs.theme, prefs.panelColor)
             alpha = prefs.opacity
         }
         val container = FrameLayout(this).apply {
@@ -397,7 +401,7 @@ class SidebarOverlayService : Service() {
         dragState = DragState.DRAGGING
         val handle = handleView ?: return
         val prefs = pillPrefs()
-        pillInnerView?.background = PullTabDrawable(highlighted = true, prefs.theme)
+        pillInnerView?.background = PullTabDrawable(highlighted = true, prefs.theme, prefs.panelColor)
         handle.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_MOVE -> {
@@ -427,7 +431,7 @@ class SidebarOverlayService : Service() {
         val handle = handleView ?: return
         val prefs = pillPrefs()
         val oPrefs = overlayPrefs()
-        pillInnerView?.background = PullTabDrawable(highlighted = false, prefs.theme)
+        pillInnerView?.background = PullTabDrawable(highlighted = false, prefs.theme, prefs.panelColor)
         pillInnerView?.alpha = prefs.opacity
         handle.setOnTouchListener(null)
         installSwipeListener(handle, oPrefs.sensitivity, lastActiveSide)
@@ -447,7 +451,8 @@ class SidebarOverlayService : Service() {
         val effectiveSide = if (prefs.side == "both") lastActiveSide else prefs.side
 
         val hasQC = oPrefs.quickControlsEnabled &&
-            (oPrefs.showTorch || oPrefs.showAutoRotate || oPrefs.showAutoBrightness || oPrefs.showRingerMode)
+            (oPrefs.showTorch || oPrefs.showAutoRotate || oPrefs.showAutoBrightness || oPrefs.showRingerMode ||
+             oPrefs.showBrightnessSlider || oPrefs.showVolumeSlider)
         val hasActions = oPrefs.showAllApps || oPrefs.showEdit
         val hasControls = hasQC || hasActions
 
@@ -458,7 +463,9 @@ class SidebarOverlayService : Service() {
         val rowH = if (oPrefs.showLabels) dp(82) else dp(68)
         val numCtrlRows = (if (hasQC) listOf(
             oPrefs.showTorch || oPrefs.showAutoRotate,
-            oPrefs.showAutoBrightness || oPrefs.showRingerMode
+            oPrefs.showAutoBrightness || oPrefs.showRingerMode,
+            oPrefs.showBrightnessSlider,
+            oPrefs.showVolumeSlider
         ).count { it } else 0) + (if (hasActions) 1 else 0)
         val controlsH = if (hasControls) dp(8) + numCtrlRows * dp(60) + (numCtrlRows - 1) * dp(6) + dp(8) + dp(6) else 0
         val appsH = dp(4) + rows * rowH + dp(16)
@@ -570,6 +577,25 @@ class SidebarOverlayService : Service() {
             if (oPrefs.showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
                 { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
+
+            if (oPrefs.showBrightnessSlider) {
+                controlsStrip.addView(makeSliderRow(
+                    "☀", getBrightness(), 0, 255, labelColor, tileActive
+                ) { setBrightness(it) }, LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(6) })
+            }
+            if (oPrefs.showVolumeSlider) {
+                val am = getSystemService(AUDIO_SERVICE) as AudioManager
+                controlsStrip.addView(makeSliderRow(
+                    "🔊", am.getStreamVolume(AudioManager.STREAM_MUSIC),
+                    0, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
+                    labelColor, tileActive
+                ) { v -> runCatching { am.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0) } },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(6) })
+            }
         }
         if (hasActions) {
             val actionsRow = LinearLayout(this).apply {
@@ -1154,6 +1180,65 @@ class SidebarOverlayService : Service() {
         try { am.ringerMode = next } catch (e: Exception) { Log.w(TAG, "Ringer toggle failed", e) }
     }
 
+    // ── Brightness helpers ────────────────────────────────────────────────────
+
+    private fun getBrightness(): Int = try {
+        Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+    } catch (_: Settings.SettingNotFoundException) { 127 }
+
+    private fun setBrightness(value: Int) {
+        if (!Settings.System.canWrite(this)) {
+            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                Uri.parse("package:$packageName"))
+                .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+            return
+        }
+        Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE,
+            Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
+        Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, value)
+    }
+
+    // ── Slider row ────────────────────────────────────────────────────────────
+
+    private fun makeSliderRow(
+        icon: String,
+        initial: Int, min: Int, max: Int,
+        iconColor: Int,
+        accentColor: Int,
+        onChange: (Int) -> Unit
+    ): LinearLayout {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+        }
+        row.addView(TextView(this).apply {
+            text = icon
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setTextColor(iconColor)
+            layoutParams = LinearLayout.LayoutParams(dp(28), LinearLayout.LayoutParams.WRAP_CONTENT)
+        })
+        val seekBar = SeekBar(this).apply {
+            this.max = max - min
+            progress = (initial - min).coerceIn(0, max - min)
+            progressTintList = android.content.res.ColorStateList.valueOf(accentColor)
+            thumbTintList = android.content.res.ColorStateList.valueOf(accentColor)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = dp(6)
+            }
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
+                    if (fromUser) onChange(progress + min)
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        row.addView(seekBar)
+        return row
+    }
+
     // ── App cell ──────────────────────────────────────────────────────────────
 
     private fun makeAppCell(
@@ -1419,14 +1504,21 @@ class SidebarOverlayService : Service() {
 
     private inner class PullTabDrawable(
         private val highlighted: Boolean,
-        private val theme: String = "dark"
+        private val theme: String = "dark",
+        private val handleColor: String = ""
     ) : Drawable() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = when {
+            color = if (handleColor.isNotEmpty()) {
+                runCatching {
+                    val base = Color.parseColor(handleColor)
+                    val alpha = if (highlighted) 230 else 210
+                    Color.argb(alpha, Color.red(base), Color.green(base), Color.blue(base))
+                }.getOrElse { if (highlighted) Color.argb(230, 100, 100, 100) else Color.argb(210, 100, 100, 100) }
+            } else when {
                 highlighted && theme == "light" -> Color.argb(230, 160, 160, 160)
-                highlighted                     -> Color.argb(230, 110, 110, 255)
-                theme == "light"                -> Color.argb(210, 220, 220, 220)
-                else                            -> Color.argb(210, 60, 60, 190)
+                highlighted                     -> Color.argb(230, 80, 80, 80)
+                theme == "light"                -> Color.argb(210, 255, 251, 254)
+                else                            -> Color.argb(210, 28, 27, 31)
             }
         }
         private val rect = RectF()

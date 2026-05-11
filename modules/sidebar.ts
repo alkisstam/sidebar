@@ -34,6 +34,8 @@ export interface OverlaySettings {
   gestureSwipeUp: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
   gestureSwipeDown: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
   gestureDoubleTap: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
+  showBrightnessSlider: boolean;
+  showVolumeSlider: boolean;
 }
 
 export default {
