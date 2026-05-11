@@ -731,8 +731,7 @@ class SidebarOverlayService : Service() {
             dismissOverlay?.let { runCatching { wm.removeViewImmediate(it) } }
             dismissOverlay = null
             handleView?.visibility = View.VISIBLE
-                handleViewAlt?.visibility = View.VISIBLE
-            }
+            handleViewAlt?.visibility = View.VISIBLE
             return
         }
         panelView = null
