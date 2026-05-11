@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.7.0] - 2026-05-11
+
+### Added
+
+**Quick controls — brightness and volume sliders**
+- Brightness and volume can each be added as sliders inside the controls strip; both are off by default
+- Brightness writes to `Settings.System.SCREEN_BRIGHTNESS` (requires WRITE_SETTINGS); volume uses `AudioManager.STREAM_MUSIC`
+- When enabled, sliders appear at the top of the controls strip above the tile rows
+- Slider style matches the main app: 10 dp pill track, purple fill, white thumb
+
+**Handle — auto color**
+- Auto mode now maps to near-black (#1A1A1A) on dark theme and near-white (#F5F5F5) on light theme
+- Preset and custom colors apply directly to the handle (pill)
+
+### Changed
+
+**Controls strip — always collapsed by default**
+- Strip is always rendered collapsed regardless of how many rows are present; swipe up to expand, swipe down (anywhere over the strip, including over tile icons) to collapse
+- Drag indicator doubled in size (64 × 8 dp); "Controls" label underneath is 16 sp and centered
+- Strip background uses a distinct tonal color derived from the panel color (HSV ±0.18–0.22 shift)
+
+**Controls strip — sliders always on top**
+- Brightness and volume sliders are inserted above tile rows regardless of their order in the settings screen
+
+**All Apps / Edit visibility**
+- All Apps and Edit tiles are hidden when the main quick-controls toggle is disabled
+
+**Controls position**
+- Quick controls position option removed; strip is now always at the bottom of the panel
+
+### Removed
+
+- Panel drag indicator and drag-mode functionality (long-press to reposition pill from within the panel)
+- Quick controls position setting from the Behavior tab
+
 ## [1.6.0] - 2026-05-10
 
 ### Added
