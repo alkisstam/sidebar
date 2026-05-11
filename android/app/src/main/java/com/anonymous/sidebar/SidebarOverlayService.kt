@@ -229,10 +229,10 @@ class SidebarOverlayService : Service() {
     }
 
     private fun resolveControlsBg(panelBg: Int, rawColor: String, light: Boolean): Int {
-        if (rawColor.isEmpty()) return if (light) Color.argb(255, 237, 232, 242) else Color.argb(255, 43, 41, 48)
+        if (rawColor.isEmpty()) return if (light) Color.argb(255, 220, 212, 230) else Color.argb(255, 54, 52, 59)
         val hsv = FloatArray(3)
         Color.colorToHSV(panelBg, hsv)
-        val delta = if (hsv[2] < 0.5f) 0.15f else -0.12f
+        val delta = if (hsv[2] < 0.5f) 0.22f else -0.18f
         hsv[2] = (hsv[2] + delta).coerceIn(0f, 1f)
         return Color.HSVToColor(255, hsv)
     }
@@ -575,7 +575,7 @@ class SidebarOverlayService : Service() {
 
             if (oPrefs.showBrightnessSlider) {
                 controlsStrip.addView(makeSliderRow(
-                    "☀", getBrightness(), 0, 255, labelColor, tileActive
+                    "☀", getBrightness(), 0, 255, labelColor, tileActive, tileBg
                 ) { setBrightness(it) }, LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(6) })
@@ -585,7 +585,7 @@ class SidebarOverlayService : Service() {
                 controlsStrip.addView(makeSliderRow(
                     "🔊", am.getStreamVolume(AudioManager.STREAM_MUSIC),
                     0, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
-                    labelColor, tileActive
+                    labelColor, tileActive, tileBg
                 ) { v -> runCatching { am.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0) } },
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
@@ -1211,6 +1211,7 @@ class SidebarOverlayService : Service() {
         initial: Int, min: Int, max: Int,
         iconColor: Int,
         accentColor: Int,
+        trackBgColor: Int,
         onChange: (Int) -> Unit
     ): LinearLayout {
         val row = LinearLayout(this).apply {
@@ -1225,12 +1226,27 @@ class SidebarOverlayService : Service() {
             setTextColor(iconColor)
             layoutParams = LinearLayout.LayoutParams(dp(28), LinearLayout.LayoutParams.WRAP_CONTENT)
         })
+        val trackH = dp(10)
+        val r = trackH / 2f
+        val bgGd = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE; cornerRadius = r; setColor(trackBgColor)
+            setSize(-1, trackH)
+        }
+        val fillGd = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE; cornerRadius = r; setColor(accentColor)
+            setSize(-1, trackH)
+        }
+        val trackDrawable = LayerDrawable(arrayOf(bgGd, ClipDrawable(fillGd, Gravity.START, ClipDrawable.HORIZONTAL))).apply {
+            setId(0, android.R.id.background)
+            setId(1, android.R.id.progress)
+        }
         val seekBar = SeekBar(this).apply {
             this.max = max - min
             progress = (initial - min).coerceIn(0, max - min)
-            progressTintList = android.content.res.ColorStateList.valueOf(accentColor)
-            thumbTintList = android.content.res.ColorStateList.valueOf(accentColor)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+            progressDrawable = trackDrawable
+            thumbTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+            splitTrack = false
+            layoutParams = LinearLayout.LayoutParams(0, dp(36), 1f).apply {
                 marginStart = dp(6)
             }
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
