@@ -514,7 +514,7 @@ class SidebarOverlayService : Service() {
                 cornerRadius = dp(2).toFloat()
             }
             isLongClickable = true
-            layoutParams = LinearLayout.LayoutParams(dp(32), dp(4)).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(64), dp(8)).apply {
                 gravity = Gravity.CENTER_HORIZONTAL
                 topMargin = dp(10)
                 bottomMargin = dp(10)
@@ -558,9 +558,9 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             }
             if (oPrefs.showTorch) ctrlRow1.addView(makeControlTile("Torch", { "⚡" }, tileBg, tileActive,
-                { torchEnabled }, { if (torchEnabled) "On" else "Off" }) { toggleTorch() })
+                { torchEnabled }, { if (torchEnabled) "On" else "Off" }, stripGd) { toggleTorch() })
             if (oPrefs.showAutoRotate) ctrlRow1.addView(makeControlTile("Rotate", { "↻" }, tileBg, tileActive,
-                { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }) { toggleAutoRotate() })
+                { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }, stripGd) { toggleAutoRotate() })
             if (ctrlRow1.childCount > 0) controlsStrip.addView(ctrlRow1)
 
             val ctrlRow2 = LinearLayout(this).apply {
@@ -570,9 +570,9 @@ class SidebarOverlayService : Service() {
                 ).apply { topMargin = dp(6) }
             }
             if (oPrefs.showAutoBrightness) ctrlRow2.addView(makeControlTile("Brightness", { "☀" }, tileBg, tileActive,
-                { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }) { toggleAutoBrightness() })
+                { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }, stripGd) { toggleAutoBrightness() })
             if (oPrefs.showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
-                { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
+                { isRingerActive() }, { getRingerSubtitle() }, stripGd) { toggleRingerMode() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
 
             if (oPrefs.showBrightnessSlider) {
@@ -1046,6 +1046,7 @@ class SidebarOverlayService : Service() {
         bgColor: Int, activeColor: Int,
         getActive: () -> Boolean,
         getSubtitle: () -> String,
+        swipeGd: GestureDetector? = null,
         onClick: () -> Unit
     ): LinearLayout {
         val tile = LinearLayout(this).apply {
@@ -1089,6 +1090,7 @@ class SidebarOverlayService : Service() {
             Handler(Looper.getMainLooper()).postDelayed({ update() }, 120)
         }
         tile.setOnTouchListener { _, event ->
+            swipeGd?.onTouchEvent(event)
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN ->
                     tile.animate().scaleX(0.90f).scaleY(0.90f).setDuration(80).start()
