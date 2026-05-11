@@ -203,7 +203,8 @@ class SidebarOverlayService : Service() {
         val gestureSwipeDown: String,
         val gestureDoubleTap: String,
         val showBrightnessSlider: Boolean,
-        val showVolumeSlider: Boolean
+        val showVolumeSlider: Boolean,
+        val showQuickShare: Boolean
     )
 
     private fun pillPrefs(): PillPrefs {
@@ -255,7 +256,8 @@ class SidebarOverlayService : Service() {
             p.getString(Prefs.GESTURE_SWIPE_DOWN, "notifications") ?: "notifications",
             p.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none",
             p.getBoolean(Prefs.SHOW_BRIGHTNESS_SLIDER, false),
-            p.getBoolean(Prefs.SHOW_VOLUME_SLIDER, false)
+            p.getBoolean(Prefs.SHOW_VOLUME_SLIDER, false),
+            p.getBoolean(Prefs.SHOW_QUICK_SHARE, false)
         )
     }
 
@@ -408,7 +410,7 @@ class SidebarOverlayService : Service() {
 
         val hasQC = oPrefs.quickControlsEnabled &&
             (oPrefs.showTorch || oPrefs.showAutoRotate || oPrefs.showAutoBrightness || oPrefs.showRingerMode ||
-             oPrefs.showBrightnessSlider || oPrefs.showVolumeSlider)
+             oPrefs.showBrightnessSlider || oPrefs.showVolumeSlider || oPrefs.showQuickShare)
         val hasActions = oPrefs.quickControlsEnabled && (oPrefs.showAllApps || oPrefs.showEdit)
         val hasControls = hasQC || hasActions
 
@@ -419,7 +421,7 @@ class SidebarOverlayService : Service() {
         val rowH = if (oPrefs.showLabels) dp(82) else dp(68)
         val numCtrlRows = (if (hasQC) listOf(
             oPrefs.showTorch || oPrefs.showAutoRotate,
-            oPrefs.showAutoBrightness || oPrefs.showRingerMode,
+            oPrefs.showAutoBrightness || oPrefs.showRingerMode || oPrefs.showQuickShare,
             oPrefs.showBrightnessSlider,
             oPrefs.showVolumeSlider
         ).count { it } else 0) + (if (hasActions) 1 else 0)
@@ -529,6 +531,8 @@ class SidebarOverlayService : Service() {
                 { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }, stripGd) { toggleAutoBrightness() })
             if (oPrefs.showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
                 { isRingerActive() }, { getRingerSubtitle() }, stripGd) { toggleRingerMode() })
+            if (oPrefs.showQuickShare) ctrlRow2.addView(makeControlTile("Share", { "⇅" }, tileBg, tileActive,
+                { false }, { "" }, stripGd) { launchQuickShare() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
         }
         if (hasActions) {
@@ -1120,6 +1124,24 @@ class SidebarOverlayService : Service() {
             else -> AudioManager.RINGER_MODE_NORMAL
         }
         try { am.ringerMode = next } catch (e: Exception) { Log.w(TAG, "Ringer toggle failed", e) }
+    }
+
+    private fun launchQuickShare() {
+        hidePanel()
+        val candidates = listOf(
+            Intent("com.google.android.gms.RECEIVE_NEARBY").setType("*/*"),
+            Intent("com.google.android.gms.nearby.sharing.UNIFIED").setType("*/*"),
+            Intent().setComponent(android.content.ComponentName(
+                "com.google.android.gms",
+                "com.google.android.gms.nearby.sharing.main.MainActivity"
+            )),
+            Intent("android.settings.NEARBY_SHARING_SETTINGS")
+        )
+        for (intent in candidates) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try { startActivity(intent); Log.d(TAG, "QuickShare launched: $intent"); return }
+            catch (e: Exception) { Log.w(TAG, "QuickShare intent failed: $intent — ${e.message}") }
+        }
     }
 
     // ── Brightness helpers ────────────────────────────────────────────────────

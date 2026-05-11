@@ -28,4 +28,5 @@ internal object Prefs {
     const val GESTURE_DOUBLE_TAP = "gesture_double_tap"
     const val SHOW_BRIGHTNESS_SLIDER = "show_brightness_slider"
     const val SHOW_VOLUME_SLIDER = "show_volume_slider"
+    const val SHOW_QUICK_SHARE = "show_quick_share"
 }

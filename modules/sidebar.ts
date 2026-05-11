@@ -35,6 +35,7 @@ export interface OverlaySettings {
   gestureDoubleTap: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
   showBrightnessSlider: boolean;
   showVolumeSlider: boolean;
+  showQuickShare: boolean;
 }
 
 export default {
