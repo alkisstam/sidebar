@@ -713,11 +713,11 @@ class SidebarOverlayService : Service() {
             handle.addView(chevronTv)
             handle.addView(TextView(this).apply {
                 text = "Controls"
-                textSize = 8f
+                textSize = 16f
                 gravity = Gravity.CENTER
                 setTextColor(indClr)
                 layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, dp(14))
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(24))
             })
 
             val gd = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
