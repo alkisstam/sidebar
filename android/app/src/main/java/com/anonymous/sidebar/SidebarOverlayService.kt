@@ -31,8 +31,6 @@ import java.util.concurrent.Executors
 
 class SidebarOverlayService : Service() {
 
-    private enum class DragState { IDLE, DRAGGING }
-
     private lateinit var wm: WindowManager
     private var handleView: View? = null
     private var handleViewAlt: View? = null
@@ -46,7 +44,7 @@ class SidebarOverlayService : Service() {
     private var contextMenuView: View? = null
     private var showingDrawer = false
     private var shown = false
-    private var dragState = DragState.IDLE
+
     private var vibrationEnabled = true
 
     // Collapsible controls strip state
@@ -65,7 +63,7 @@ class SidebarOverlayService : Service() {
     private val fsHandler = Handler(Looper.getMainLooper())
     private val fsRunnable = object : Runnable {
         override fun run() {
-            if (!shown && dragState == DragState.IDLE) {
+            if (!shown) {
                 val vis = if (isSystemFullscreen()) View.INVISIBLE else View.VISIBLE
                 handleView?.visibility = vis
                 handleViewAlt?.visibility = vis
@@ -395,48 +393,6 @@ class SidebarOverlayService : Service() {
         if (shown) hidePanel() else showPanel()
     }
 
-    // ── Drag mode ─────────────────────────────────────────────────────────────
-
-    private fun enterDragMode() {
-        dragState = DragState.DRAGGING
-        val handle = handleView ?: return
-        val prefs = pillPrefs()
-        pillInnerView?.background = PullTabDrawable(highlighted = true, prefs.theme, prefs.panelColor)
-        handle.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_MOVE -> {
-                    val params = handle.layoutParams as WindowManager.LayoutParams
-                    val screenHeight = resources.displayMetrics.heightPixels
-                    params.y = (event.rawY.toInt() - params.height / 2)
-                        .coerceIn(0, screenHeight - params.height)
-                    runCatching { wm.updateViewLayout(handle, params) }
-                    true
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    val params = handle.layoutParams as WindowManager.LayoutParams
-                    val screenHeight = resources.displayMetrics.heightPixels
-                    val newPos = ((params.y + params.height / 2f) / screenHeight).coerceIn(0.05f, 0.95f)
-                    getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
-                        .edit().putFloat(Prefs.PILL_POSITION, newPos).apply()
-                    exitDragMode()
-                    true
-                }
-                else -> false
-            }
-        }
-    }
-
-    private fun exitDragMode() {
-        dragState = DragState.IDLE
-        val handle = handleView ?: return
-        val prefs = pillPrefs()
-        val oPrefs = overlayPrefs()
-        pillInnerView?.background = PullTabDrawable(highlighted = false, prefs.theme, prefs.panelColor)
-        pillInnerView?.alpha = prefs.opacity
-        handle.setOnTouchListener(null)
-        installSwipeListener(handle, oPrefs.sensitivity, lastActiveSide)
-    }
-
     // ── Panel ─────────────────────────────────────────────────────────────────
 
     private fun showPanel() {
@@ -506,25 +462,6 @@ class SidebarOverlayService : Service() {
             clipToOutline = true
             outlineProvider = ViewOutlineProvider.BACKGROUND
         }
-
-        // Drag indicator
-        root.addView(View(this).apply {
-            background = GradientDrawable().apply {
-                setColor(indClr)
-                cornerRadius = dp(2).toFloat()
-            }
-            isLongClickable = true
-            layoutParams = LinearLayout.LayoutParams(dp(64), dp(8)).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-                topMargin = dp(10)
-                bottomMargin = dp(10)
-            }
-            setOnLongClickListener {
-                hidePanel()
-                Handler(Looper.getMainLooper()).postDelayed({ enterDragMode() }, 300)
-                true
-            }
-        })
 
         // Quick controls strip — different background, sits above the favorites grid
         val controlsStrip = LinearLayout(this).apply {
@@ -793,8 +730,7 @@ class SidebarOverlayService : Service() {
         val panel = panelView ?: run {
             dismissOverlay?.let { runCatching { wm.removeViewImmediate(it) } }
             dismissOverlay = null
-            if (dragState == DragState.IDLE) {
-                handleView?.visibility = View.VISIBLE
+            handleView?.visibility = View.VISIBLE
                 handleViewAlt?.visibility = View.VISIBLE
             }
             return
@@ -806,7 +742,6 @@ class SidebarOverlayService : Service() {
         dismissOverlay = null
         val handle = handleView
         val handleAlt = handleViewAlt
-        val wasDrag = dragState == DragState.DRAGGING
 
         val slideTo = if (effectiveSide == "left") -dp(216).toFloat() else dp(216).toFloat()
         panel.animate()
@@ -816,7 +751,7 @@ class SidebarOverlayService : Service() {
                 panel.alpha = 0f
                 runCatching { wm.removeViewImmediate(panel) }
                 overlay?.let { runCatching { wm.removeViewImmediate(it) } }
-                if (!wasDrag && !showingDrawer) {
+                if (!showingDrawer) {
                     handle?.visibility = View.VISIBLE
                     handleAlt?.visibility = View.VISIBLE
                 }
@@ -1025,10 +960,8 @@ class SidebarOverlayService : Service() {
         allAppsDismissOverlay = null
         val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
         imm.hideSoftInputFromWindow(drawer.windowToken, 0)
-        if (dragState == DragState.IDLE) {
-            handleView?.visibility = View.VISIBLE
-            handleViewAlt?.visibility = View.VISIBLE
-        }
+        handleView?.visibility = View.VISIBLE
+        handleViewAlt?.visibility = View.VISIBLE
         drawer.animate().alpha(0f).scaleX(0.92f).scaleY(0.92f)
             .setDuration(180).setInterpolator(AccelerateInterpolator(1.5f))
             .withEndAction {
