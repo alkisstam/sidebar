@@ -541,17 +541,14 @@ class SidebarOverlayService : Service() {
         if (hasQC) {
             // Swipe down on the strip when expanded → collapse
             val stripGd = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+                override fun onDown(e: MotionEvent): Boolean = true
                 override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
                     if (e1 == null) return false
                     if (e2.y - e1.y > dp(16) && controlsExpanded) { animateControls(); return true }
                     return false
                 }
             })
-            controlsStrip.setOnTouchListener { _, event ->
-                val consumed = stripGd.onTouchEvent(event)
-                if (!consumed) { controlsStrip.onTouchEvent(event) }
-                consumed
-            }
+            controlsStrip.setOnTouchListener { _, event -> stripGd.onTouchEvent(event) }
 
             val ctrlRow1 = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -722,6 +719,7 @@ class SidebarOverlayService : Service() {
             })
 
             val gd = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+                override fun onDown(e: MotionEvent): Boolean = true
                 override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
                     if (e1 == null) return false
                     val dy = e2.y - e1.y
