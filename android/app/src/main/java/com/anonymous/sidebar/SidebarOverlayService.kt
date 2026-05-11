@@ -1,5 +1,6 @@
 package com.anonymous.sidebar
 
+import android.animation.*
 import android.app.*
 import android.content.*
 import android.content.pm.PackageManager
@@ -45,6 +46,12 @@ class SidebarOverlayService : Service() {
     private var shown = false
     private var dragState = DragState.IDLE
     private var vibrationEnabled = true
+
+    // Collapsible controls strip state
+    private var ctrlWrapperView: FrameLayout? = null
+    private var ctrlChevronView: TextView? = null
+    private var controlsExpanded = false
+    private var ctrlFullH = 0
 
     private val appLoadExecutor = Executors.newSingleThreadExecutor()
     // Keyed by package name; populated on service start so panel and drawer open instantly.
@@ -527,6 +534,20 @@ class SidebarOverlayService : Service() {
         }
 
         if (hasQC) {
+            // Swipe down on the strip when expanded → collapse
+            val stripGd = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+                override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
+                    if (e1 == null) return false
+                    if (e2.y - e1.y > dp(16) && controlsExpanded) { animateControls(); return true }
+                    return false
+                }
+            })
+            controlsStrip.setOnTouchListener { _, event ->
+                val consumed = stripGd.onTouchEvent(event)
+                if (!consumed) { controlsStrip.onTouchEvent(event) }
+                consumed
+            }
+
             val ctrlRow1 = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
@@ -631,7 +652,54 @@ class SidebarOverlayService : Service() {
         root.addView(scroll, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        if (hasControls && oPrefs.quickControlsPosition == "bottom") root.addView(controlsStrip)
+        val shouldCollapse = numCtrlRows >= 2
+        if (hasControls && oPrefs.quickControlsPosition == "bottom") {
+            if (shouldCollapse) {
+                ctrlFullH = controlsH - dp(6)
+                controlsExpanded = false
+                val wrapper = FrameLayout(this).apply {
+                    clipChildren = true
+                    clipToPadding = true
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, 0)
+                }
+                (controlsStrip.layoutParams as LinearLayout.LayoutParams).bottomMargin = 0
+                wrapper.addView(controlsStrip)
+                ctrlWrapperView = wrapper
+                root.addView(wrapper)
+            } else {
+                root.addView(controlsStrip)
+            }
+        }
+
+        val chevronTextView = if (shouldCollapse && hasControls && oPrefs.quickControlsPosition == "bottom") {
+            TextView(this).apply {
+                text = "∧"
+                textSize = 10f
+                gravity = Gravity.CENTER
+                setTextColor(indClr)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(20)
+                )
+            }
+        } else null
+        ctrlChevronView = chevronTextView
+
+        if (chevronTextView != null) {
+            val gd = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+                override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
+                    if (e1 == null) return false
+                    val dy = e2.y - e1.y
+                    if (Math.abs(dy) < dp(16)) return false
+                    if (dy < 0 && !controlsExpanded) { animateControls(); return true }
+                    if (dy > 0 && controlsExpanded)  { animateControls(); return true }
+                    return false
+                }
+                override fun onSingleTapUp(e: MotionEvent): Boolean { animateControls(); return true }
+            })
+            chevronTextView.setOnTouchListener { _, event -> gd.onTouchEvent(event) }
+            root.addView(chevronTextView)
+        }
 
         val panelGravity = if (effectiveSide == "left") Gravity.START or Gravity.CENTER_VERTICAL
                            else Gravity.END or Gravity.CENTER_VERTICAL
@@ -659,9 +727,35 @@ class SidebarOverlayService : Service() {
             .start()
     }
 
+    private fun animateControls() {
+        val wrapper = ctrlWrapperView ?: return
+        val chevron = ctrlChevronView
+        val fromH = if (controlsExpanded) ctrlFullH else 0
+        val toH   = if (controlsExpanded) 0 else ctrlFullH
+        ValueAnimator.ofInt(fromH, toH).apply {
+            duration = 260
+            interpolator = if (controlsExpanded) AccelerateInterpolator(1.4f) else DecelerateInterpolator(1.4f)
+            addUpdateListener { anim ->
+                val h = anim.animatedValue as Int
+                (wrapper.layoutParams as LinearLayout.LayoutParams).height = h
+                wrapper.requestLayout()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    controlsExpanded = !controlsExpanded
+                    chevron?.text = if (controlsExpanded) "∨" else "∧"
+                }
+            })
+            start()
+        }
+    }
+
     private fun hidePanel() {
         if (!shown) return
         shown = false
+        ctrlWrapperView = null
+        ctrlChevronView = null
+        controlsExpanded = false
         val panel = panelView ?: run {
             dismissOverlay?.let { runCatching { wm.removeViewImmediate(it) } }
             dismissOverlay = null
