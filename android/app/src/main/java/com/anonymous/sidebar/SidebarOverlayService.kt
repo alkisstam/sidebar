@@ -451,7 +451,7 @@ class SidebarOverlayService : Service() {
         val hasQC = oPrefs.quickControlsEnabled &&
             (oPrefs.showTorch || oPrefs.showAutoRotate || oPrefs.showAutoBrightness || oPrefs.showRingerMode ||
              oPrefs.showBrightnessSlider || oPrefs.showVolumeSlider)
-        val hasActions = oPrefs.showAllApps || oPrefs.showEdit
+        val hasActions = oPrefs.quickControlsEnabled && (oPrefs.showAllApps || oPrefs.showEdit)
         val hasControls = hasQC || hasActions
 
         val screenHeight = resources.displayMetrics.heightPixels
