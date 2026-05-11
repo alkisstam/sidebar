@@ -552,10 +552,29 @@ class SidebarOverlayService : Service() {
             })
             controlsStrip.setOnTouchListener { _, event -> stripGd.onTouchEvent(event) }
 
+            if (oPrefs.showBrightnessSlider) {
+                controlsStrip.addView(makeSliderRow(
+                    "☀", getBrightness(), 0, 255, labelColor, tileActive, tileBg
+                ) { setBrightness(it) }, LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            }
+            if (oPrefs.showVolumeSlider) {
+                val am = getSystemService(AUDIO_SERVICE) as AudioManager
+                controlsStrip.addView(makeSliderRow(
+                    "🔊", am.getStreamVolume(AudioManager.STREAM_MUSIC),
+                    0, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
+                    labelColor, tileActive, tileBg
+                ) { v -> runCatching { am.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0) } },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { if (oPrefs.showBrightnessSlider) topMargin = dp(6) })
+            }
+
             val ctrlRow1 = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { if (controlsStrip.childCount > 0) topMargin = dp(6) }
             }
             if (oPrefs.showTorch) ctrlRow1.addView(makeControlTile("Torch", { "⚡" }, tileBg, tileActive,
                 { torchEnabled }, { if (torchEnabled) "On" else "Off" }, stripGd) { toggleTorch() })
@@ -574,25 +593,6 @@ class SidebarOverlayService : Service() {
             if (oPrefs.showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
                 { isRingerActive() }, { getRingerSubtitle() }, stripGd) { toggleRingerMode() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
-
-            if (oPrefs.showBrightnessSlider) {
-                controlsStrip.addView(makeSliderRow(
-                    "☀", getBrightness(), 0, 255, labelColor, tileActive, tileBg
-                ) { setBrightness(it) }, LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(6) })
-            }
-            if (oPrefs.showVolumeSlider) {
-                val am = getSystemService(AUDIO_SERVICE) as AudioManager
-                controlsStrip.addView(makeSliderRow(
-                    "🔊", am.getStreamVolume(AudioManager.STREAM_MUSIC),
-                    0, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
-                    labelColor, tileActive, tileBg
-                ) { v -> runCatching { am.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0) } },
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(6) })
-            }
         }
         if (hasActions) {
             val actionsRow = LinearLayout(this).apply {
