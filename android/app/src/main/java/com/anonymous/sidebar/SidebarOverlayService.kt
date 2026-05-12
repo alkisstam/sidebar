@@ -507,14 +507,14 @@ class SidebarOverlayService : Service() {
 
             if (oPrefs.showBrightnessSlider) {
                 controlsStrip.addView(makeSliderRow(
-                    "", getBrightness(), 0, 255, labelColor, tileActive, tileBg
+                    "\uE430", getBrightness(), 0, 255, labelColor, tileActive, tileBg
                 ) { setBrightness(it) }, LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }
             if (oPrefs.showVolumeSlider) {
                 val am = getSystemService(AUDIO_SERVICE) as AudioManager
                 controlsStrip.addView(makeSliderRow(
-                    "", am.getStreamVolume(AudioManager.STREAM_MUSIC),
+                    "", am.getStreamVolume(AudioManager.STREAM_MUSIC),
                     0, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
                     labelColor, tileActive, tileBg
                 ) { v ->
@@ -532,9 +532,9 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { if (controlsStrip.childCount > 0) topMargin = dp(6) }
             }
-            if (oPrefs.showTorch) ctrlRow1.addView(makeControlTile("Torch", { "" }, tileBg, tileActive,
+            if (oPrefs.showTorch) ctrlRow1.addView(makeControlTile("Torch", { "\uEA0B" }, tileBg, tileActive,
                 { torchEnabled }, { if (torchEnabled) "On" else "Off" }, stripGd) { toggleTorch() })
-            if (oPrefs.showAutoRotate) ctrlRow1.addView(makeControlTile("Rotate", { "" }, tileBg, tileActive,
+            if (oPrefs.showAutoRotate) ctrlRow1.addView(makeControlTile("Rotate", { "\uE1C1" }, tileBg, tileActive,
                 { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }, stripGd) { toggleAutoRotate() })
             if (ctrlRow1.childCount > 0) controlsStrip.addView(ctrlRow1)
 
@@ -544,11 +544,11 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(6) }
             }
-            if (oPrefs.showAutoBrightness) ctrlRow2.addView(makeControlTile("Brightness", { "" }, tileBg, tileActive,
+            if (oPrefs.showAutoBrightness) ctrlRow2.addView(makeControlTile("Brightness", { "\uE1AB" }, tileBg, tileActive,
                 { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }, stripGd) { toggleAutoBrightness() })
             if (oPrefs.showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
                 { isRingerActive() }, { getRingerSubtitle() }, stripGd) { toggleRingerMode() })
-            if (oPrefs.showQuickShare) ctrlRow2.addView(makeControlTile("Share", { "" }, tileBg, tileActive,
+            if (oPrefs.showQuickShare) ctrlRow2.addView(makeControlTile("Share", { "\uE80D" }, tileBg, tileActive,
                 { false }, { "" }, stripGd) { launchQuickShare() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
 
@@ -558,11 +558,11 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(6) }
             }
-            if (oPrefs.showPower) ctrlRow3.addView(makeControlTile("Power", { "" }, tileBg, tileActive,
+            if (oPrefs.showPower) ctrlRow3.addView(makeControlTile("Power", { "\uE8AC" }, tileBg, tileActive,
                 { false }, { "" }, stripGd) { openPowerMenu() })
-            if (oPrefs.showQr) ctrlRow3.addView(makeControlTile("QR Scan", { "" }, tileBg, tileActive,
+            if (oPrefs.showQr) ctrlRow3.addView(makeControlTile("QR Scan", { "\uF206" }, tileBg, tileActive,
                 { false }, { "" }, stripGd) { launchQrScanner() })
-            if (oPrefs.showDnd) ctrlRow3.addView(makeControlTile("DND", { if (isDndEnabled()) "" else "" }, tileBg, tileActive,
+            if (oPrefs.showDnd) ctrlRow3.addView(makeControlTile("DND", { if (isDndEnabled()) "\uE644" else "\uE7F4" }, tileBg, tileActive,
                 { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }, stripGd) { toggleDnd() })
             if (ctrlRow3.childCount > 0) controlsStrip.addView(ctrlRow3)
         }
@@ -573,9 +573,9 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { if (hasQC && controlsStrip.childCount > 0) topMargin = dp(6) }
             }
-            if (oPrefs.showAllApps) actionsRow.addView(makeControlTile("All Apps", { "" }, tileBg, tileActive,
+            if (oPrefs.showAllApps) actionsRow.addView(makeControlTile("All Apps", { "\uE5C3" }, tileBg, tileActive,
                 { false }, { "" }) { showAllAppsDrawer() })
-            if (oPrefs.showEdit) actionsRow.addView(makeControlTile("Edit", { "" }, tileBg, tileActive,
+            if (oPrefs.showEdit) actionsRow.addView(makeControlTile("Edit", { "\uE3C9" }, tileBg, tileActive,
                 { false }, { "" }) {
                 hidePanel()
                 getSharedPreferences(Prefs.FILE, MODE_PRIVATE).edit().putString(Prefs.LAUNCH_TAB, "apps").apply()
@@ -1131,15 +1131,15 @@ class SidebarOverlayService : Service() {
         (getSystemService(AUDIO_SERVICE) as AudioManager).ringerMode
 
     private fun getRingerIcon(): String = when (getRingerMode()) {
-        AudioManager.RINGER_MODE_SILENT  -> ""  // notifications_off
-        AudioManager.RINGER_MODE_VIBRATE -> ""  // vibration
-        else                             -> ""  // notifications
+        AudioManager.RINGER_MODE_SILENT  -> "\uE7F6"  // notifications_off
+        AudioManager.RINGER_MODE_VIBRATE -> "\uE62D"  // vibration
+        else                             -> "\uE7F4"  // notifications
     }
 
     private fun getRingerSubtitle(): String = when (getRingerMode()) {
-        AudioManager.RINGER_MODE_SILENT  -> "Silent"
-        AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
-        else                             -> "Ring"
+        AudioManager.RINGER_MODE_SILENT  -> "\uE7F6"
+        AudioManager.RINGER_MODE_VIBRATE -> "\uE62D"
+        else                             -> "\uE7F4"
     }
 
     private fun isRingerActive(): Boolean =
