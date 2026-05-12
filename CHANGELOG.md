@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.9.0] - 2026-05-12
+## [1.8.0] - 2026-05-12
 
 ### Added
 
@@ -10,14 +10,11 @@
 - New Do Not Disturb tile toggles between `INTERRUPTION_FILTER_ALL` and `INTERRUPTION_FILTER_NONE`; tapping without the DND permission granted opens Notification Policy settings
 - All three appear in a new third tile row in the controls strip, each off by default; toggles added to the Control tab
 
-## [1.8.0] - 2026-05-11
-
-### Added
-
 **Quick controls — Quick Share tile**
 - New optional Quick Share tile in the controls strip (off by default); toggle it in the Behavior tab
 - Tapping opens Quick Share receive mode (`com.google.android.gms.RECEIVE_NEARBY`) — makes the device discoverable to receive files from nearby devices
 - Falls back through the unified sharing UI, explicit GMS activity, and Nearby Sharing settings in order
+
 
 ## [1.7.0] - 2026-05-11
 
