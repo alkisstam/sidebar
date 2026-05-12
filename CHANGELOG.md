@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.9.0] - 2026-05-12
+
+### Added
+
+**Quick controls — Power, QR scanner, and DND tiles**
+- New Power tile opens the system power menu via `AccessibilityService.GLOBAL_ACTION_POWER_DIALOG`; requires enabling Sidebar in Settings → Accessibility once — if not yet enabled, tapping opens Accessibility settings directly
+- New QR scanner tile launches a QR scanning activity via intent chain (ZXing URI → Google Lens → OPPO camera → system camera fallback)
+- New Do Not Disturb tile toggles between `INTERRUPTION_FILTER_ALL` and `INTERRUPTION_FILTER_NONE`; tapping without the DND permission granted opens Notification Policy settings
+- All three appear in a new third tile row in the controls strip, each off by default; toggles added to the Control tab
+
 ## [1.8.0] - 2026-05-11
 
 ### Added
