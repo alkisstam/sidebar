@@ -48,9 +48,9 @@ const PANEL_COLORS: { key: string }[] = [
   { key: "#073276ff" },
   { key: "#3c0c94ff" },
   { key: "#65055cff" },
-  { key: "#36043fff" },
+  { key: "#084f36ff" },
   { key: "#9abae9ff" },
-  { key: "#a9eedeff" },
+  { key: "#c2eea9ff" },
   { key: "#ede1a6ff" },
 ];
 const DEFAULT_OVERLAY: OverlaySettings = {
