@@ -503,7 +503,10 @@ class SidebarOverlayService : Service() {
                     "🔊", am.getStreamVolume(AudioManager.STREAM_MUSIC),
                     0, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
                     labelColor, tileActive, tileBg
-                ) { v -> runCatching { am.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0) } },
+                ) { v ->
+                    try { am.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0) }
+                    catch (e: Exception) { Log.w(TAG, "setStreamVolume failed", e) }
+                },
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { if (oPrefs.showBrightnessSlider) topMargin = dp(6) })
