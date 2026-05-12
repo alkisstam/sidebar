@@ -182,6 +182,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putBoolean("showBrightnessSlider", prefs.getBoolean(Prefs.SHOW_BRIGHTNESS_SLIDER, false))
         map.putBoolean("showVolumeSlider", prefs.getBoolean(Prefs.SHOW_VOLUME_SLIDER, false))
         map.putBoolean("showQuickShare", prefs.getBoolean(Prefs.SHOW_QUICK_SHARE, false))
+        map.putBoolean("showPower", prefs.getBoolean(Prefs.SHOW_POWER, false))
+        map.putBoolean("showQr", prefs.getBoolean(Prefs.SHOW_QR, false))
+        map.putBoolean("showDnd", prefs.getBoolean(Prefs.SHOW_DND, false))
         promise.resolve(map)
     }
 
@@ -205,6 +208,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("showBrightnessSlider")) prefs.putBoolean(Prefs.SHOW_BRIGHTNESS_SLIDER, settings.getBoolean("showBrightnessSlider"))
         if (settings.hasKey("showVolumeSlider")) prefs.putBoolean(Prefs.SHOW_VOLUME_SLIDER, settings.getBoolean("showVolumeSlider"))
         if (settings.hasKey("showQuickShare")) prefs.putBoolean(Prefs.SHOW_QUICK_SHARE, settings.getBoolean("showQuickShare"))
+        if (settings.hasKey("showPower")) prefs.putBoolean(Prefs.SHOW_POWER, settings.getBoolean("showPower"))
+        if (settings.hasKey("showQr")) prefs.putBoolean(Prefs.SHOW_QR, settings.getBoolean("showQr"))
+        if (settings.hasKey("showDnd")) prefs.putBoolean(Prefs.SHOW_DND, settings.getBoolean("showDnd"))
         prefs.apply()
         val intent = Intent(reactContext, SidebarOverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

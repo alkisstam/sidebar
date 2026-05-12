@@ -29,4 +29,7 @@ internal object Prefs {
     const val SHOW_BRIGHTNESS_SLIDER = "show_brightness_slider"
     const val SHOW_VOLUME_SLIDER = "show_volume_slider"
     const val SHOW_QUICK_SHARE = "show_quick_share"
+    const val SHOW_POWER = "show_power"
+    const val SHOW_QR    = "show_qr"
+    const val SHOW_DND   = "show_dnd"
 }

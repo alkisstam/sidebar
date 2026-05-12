@@ -11,10 +11,12 @@ import android.graphics.drawable.ClipDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
+import android.accessibilityservice.AccessibilityService
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
 import android.net.Uri
+import android.provider.MediaStore
 import android.os.*
 import android.provider.Settings
 import android.util.DisplayMetrics
@@ -204,7 +206,10 @@ class SidebarOverlayService : Service() {
         val gestureDoubleTap: String,
         val showBrightnessSlider: Boolean,
         val showVolumeSlider: Boolean,
-        val showQuickShare: Boolean
+        val showQuickShare: Boolean,
+        val showPower: Boolean,
+        val showQr: Boolean,
+        val showDnd: Boolean
     )
 
     private fun pillPrefs(): PillPrefs {
@@ -257,7 +262,10 @@ class SidebarOverlayService : Service() {
             p.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none",
             p.getBoolean(Prefs.SHOW_BRIGHTNESS_SLIDER, false),
             p.getBoolean(Prefs.SHOW_VOLUME_SLIDER, false),
-            p.getBoolean(Prefs.SHOW_QUICK_SHARE, false)
+            p.getBoolean(Prefs.SHOW_QUICK_SHARE, false),
+            p.getBoolean(Prefs.SHOW_POWER, false),
+            p.getBoolean(Prefs.SHOW_QR, false),
+            p.getBoolean(Prefs.SHOW_DND, false)
         )
     }
 
@@ -410,7 +418,8 @@ class SidebarOverlayService : Service() {
 
         val hasQC = oPrefs.quickControlsEnabled &&
             (oPrefs.showTorch || oPrefs.showAutoRotate || oPrefs.showAutoBrightness || oPrefs.showRingerMode ||
-             oPrefs.showBrightnessSlider || oPrefs.showVolumeSlider || oPrefs.showQuickShare)
+             oPrefs.showBrightnessSlider || oPrefs.showVolumeSlider || oPrefs.showQuickShare ||
+             oPrefs.showPower || oPrefs.showQr || oPrefs.showDnd)
         val hasActions = oPrefs.quickControlsEnabled && (oPrefs.showAllApps || oPrefs.showEdit)
         val hasControls = hasQC || hasActions
 
@@ -422,6 +431,7 @@ class SidebarOverlayService : Service() {
         val numCtrlRows = (if (hasQC) listOf(
             oPrefs.showTorch || oPrefs.showAutoRotate,
             oPrefs.showAutoBrightness || oPrefs.showRingerMode || oPrefs.showQuickShare,
+            oPrefs.showPower || oPrefs.showQr || oPrefs.showDnd,
             oPrefs.showBrightnessSlider,
             oPrefs.showVolumeSlider
         ).count { it } else 0) + (if (hasActions) 1 else 0)
@@ -537,6 +547,20 @@ class SidebarOverlayService : Service() {
             if (oPrefs.showQuickShare) ctrlRow2.addView(makeControlTile("Share", { "⇅" }, tileBg, tileActive,
                 { false }, { "" }, stripGd) { launchQuickShare() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
+
+            val ctrlRow3 = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(6) }
+            }
+            if (oPrefs.showPower) ctrlRow3.addView(makeControlTile("Power", { "🔌" }, tileBg, tileActive,
+                { false }, { "" }, stripGd) { openPowerMenu() })
+            if (oPrefs.showQr) ctrlRow3.addView(makeControlTile("QR Scan", { "⬚" }, tileBg, tileActive,
+                { false }, { "" }, stripGd) { launchQrScanner() })
+            if (oPrefs.showDnd) ctrlRow3.addView(makeControlTile("DND", { if (isDndEnabled()) "🔕" else "🔔" }, tileBg, tileActive,
+                { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }, stripGd) { toggleDnd() })
+            if (ctrlRow3.childCount > 0) controlsStrip.addView(ctrlRow3)
         }
         if (hasActions) {
             val actionsRow = LinearLayout(this).apply {
@@ -1145,6 +1169,48 @@ class SidebarOverlayService : Service() {
             try { startActivity(intent); Log.d(TAG, "QuickShare launched: $intent"); return }
             catch (e: Exception) { Log.w(TAG, "QuickShare intent failed: $intent — ${e.message}") }
         }
+    }
+
+    private fun openPowerMenu() {
+        hidePanel()
+        val svc = SidebarAccessibilityService.instance
+        if (svc != null) svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_POWER_DIALOG)
+        else startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+    }
+
+    private fun launchQrScanner() {
+        hidePanel()
+        val candidates = listOf(
+            Intent(Intent.ACTION_VIEW, Uri.parse("zxing://scan/")),
+            Intent().setComponent(ComponentName("com.google.ar.lens",
+                "com.google.vr.apps.ornament.app.lens.LensLauncherActivity")),
+            Intent().setComponent(ComponentName("com.oppo.camera",
+                "com.oppo.camera.activity.OppoCameraActivity")),
+            Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+        )
+        for (intent in candidates) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try { startActivity(intent); return }
+            catch (e: Exception) { Log.w(TAG, "QR intent failed: ${e.message}") }
+        }
+    }
+
+    private fun isDndEnabled(): Boolean {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        return nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+    }
+
+    private fun toggleDnd() {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (!nm.isNotificationPolicyAccessGranted) {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+            return
+        }
+        val next = if (isDndEnabled()) NotificationManager.INTERRUPTION_FILTER_ALL
+                   else NotificationManager.INTERRUPTION_FILTER_NONE
+        try { nm.setInterruptionFilter(next) } catch (e: Exception) { Log.w(TAG, "DND toggle failed", e) }
     }
 
     // ── Brightness helpers ────────────────────────────────────────────────────

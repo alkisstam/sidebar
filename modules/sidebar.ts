@@ -36,6 +36,9 @@ export interface OverlaySettings {
   showBrightnessSlider: boolean;
   showVolumeSlider: boolean;
   showQuickShare: boolean;
+  showPower: boolean;
+  showQr: boolean;
+  showDnd: boolean;
 }
 
 export default {

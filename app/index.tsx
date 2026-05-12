@@ -59,6 +59,7 @@ const DEFAULT_OVERLAY: OverlaySettings = {
   showAllApps: true, showEdit: true,
   gestureSwipeUp: 'none', gestureSwipeDown: 'notifications', gestureDoubleTap: 'none',
   showBrightnessSlider: false, showVolumeSlider: false, showQuickShare: false,
+  showPower: false, showQr: false, showDnd: false,
 };
 
 export default function Index() {
@@ -628,6 +629,33 @@ export default function Index() {
                 <Switch
                   value={overlay.showQuickShare}
                   onValueChange={v => setOverlay(p => ({ ...p, showQuickShare: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Power menu</Text>
+                <Switch
+                  value={overlay.showPower}
+                  onValueChange={v => setOverlay(p => ({ ...p, showPower: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>QR scanner</Text>
+                <Switch
+                  value={overlay.showQr}
+                  onValueChange={v => setOverlay(p => ({ ...p, showQr: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Do Not Disturb</Text>
+                <Switch
+                  value={overlay.showDnd}
+                  onValueChange={v => setOverlay(p => ({ ...p, showDnd: v }))}
                   trackColor={{ true: colors.tint }}
                 />
               </View>
