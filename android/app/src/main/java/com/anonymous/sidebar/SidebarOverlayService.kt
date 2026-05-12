@@ -167,6 +167,9 @@ class SidebarOverlayService : Service() {
             handleViewAlt?.let { runCatching { wm.removeView(it) } }
             panelView?.let { runCatching { wm.removeView(it) } }
             dismissOverlay?.let { runCatching { wm.removeView(it) } }
+            allAppsView?.let { runCatching { wm.removeView(it) } }
+            allAppsDismissOverlay?.let { runCatching { wm.removeView(it) } }
+            contextMenuView?.let { runCatching { wm.removeView(it) } }
         }
     }
 
@@ -412,7 +415,6 @@ class SidebarOverlayService : Service() {
     private fun showPanel() {
         if (shown) return
         shown = true
-        vibrate()
         val prefs = pillPrefs()
         val oPrefs = overlayPrefs()
         val pkgs = loadFavorites()
@@ -462,7 +464,7 @@ class SidebarOverlayService : Service() {
         val effectiveLight = if (prefs.panelColor.isNotEmpty()) {
             val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
         } else light
-        val tileBg     = if (effectiveLight) Color.argb(255, 115, 105, 130) else Color.argb(220, 55, 52, 62)
+        val tileBg     = if (effectiveLight) Color.argb(130, 115, 105, 130) else Color.argb(130, 55, 52, 62)
         val tileActive = if (effectiveLight) Color.argb(255, 103, 80, 164)  else Color.argb(255, 79, 55, 139)
         val indClr     = if (effectiveLight) Color.argb(60, 0, 0, 0)        else Color.argb(80, 255, 255, 255)
         val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
@@ -514,7 +516,7 @@ class SidebarOverlayService : Service() {
             if (oPrefs.showVolumeSlider) {
                 val am = getSystemService(AUDIO_SERVICE) as AudioManager
                 controlsStrip.addView(makeSliderRow(
-                    "", am.getStreamVolume(AudioManager.STREAM_MUSIC),
+                    "\uE050", am.getStreamVolume(AudioManager.STREAM_MUSIC),
                     0, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
                     labelColor, tileActive, tileBg
                 ) { v ->
@@ -667,7 +669,7 @@ class SidebarOverlayService : Service() {
 
         if (hasQC && hasControls) {
             val chevronTv = TextView(this).apply {
-                text = "∧"
+                text = "Swipe up"
                 textSize = 10f
                 gravity = Gravity.CENTER
                 setTextColor(indClr)
@@ -809,8 +811,8 @@ class SidebarOverlayService : Service() {
         val effectiveLight = if (p.panelColor.isNotEmpty()) {
             val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
         } else light
-        val tileBg     = if (effectiveLight) Color.argb(255, 115, 105, 130) else Color.argb(220, 55, 52, 62)
-        val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
+        val tileBg     = if (effectiveLight) Color.argb(130, 115, 105, 130) else Color.argb(130, 55, 52, 62)
+        val labelColor = if (effectiveLight) Color.argb(140, 28, 27, 31)    else Color.argb(140, 230, 225, 229)
         val indClr     = if (effectiveLight) Color.argb(60, 0, 0, 0)        else Color.argb(80, 255, 255, 255)
 
         val dismissView = View(this).apply {
@@ -1057,16 +1059,22 @@ class SidebarOverlayService : Service() {
             onClick()
             Handler(Looper.getMainLooper()).postDelayed({ update() }, 120)
         }
+        var touchDownX = 0f; var touchDownY = 0f; var touchSwiped = false
         tile.setOnTouchListener { _, event ->
             swipeGd?.onTouchEvent(event)
             when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN ->
+                MotionEvent.ACTION_DOWN -> {
+                    touchDownX = event.rawX; touchDownY = event.rawY; touchSwiped = false
                     tile.animate().scaleX(0.90f).scaleY(0.90f).setDuration(80).start()
+                }
+                MotionEvent.ACTION_MOVE ->
+                    if (Math.abs(event.rawX - touchDownX) > dp(8) ||
+                        Math.abs(event.rawY - touchDownY) > dp(8)) touchSwiped = true
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
                     tile.animate().scaleX(1f).scaleY(1f).setDuration(200)
                         .setInterpolator(OvershootInterpolator(1.8f)).start()
             }
-            false
+            touchSwiped
         }
 
         tile.addView(iconTv)
@@ -1137,9 +1145,9 @@ class SidebarOverlayService : Service() {
     }
 
     private fun getRingerSubtitle(): String = when (getRingerMode()) {
-        AudioManager.RINGER_MODE_SILENT  -> "\uE7F6"
-        AudioManager.RINGER_MODE_VIBRATE -> "\uE62D"
-        else                             -> "\uE7F4"
+        AudioManager.RINGER_MODE_SILENT  -> "Silent"
+        AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
+        else                             -> "Normal"
     }
 
     private fun isRingerActive(): Boolean =
@@ -1378,8 +1386,8 @@ class SidebarOverlayService : Service() {
         val effectiveLight = if (prefs.panelColor.isNotEmpty()) {
             val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
         } else light
-        val tileBg = if (effectiveLight) Color.argb(255, 115, 105, 130) else Color.argb(220, 55, 52, 62)
-        val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31) else Color.argb(230, 230, 225, 229)
+        val tileBg = if (effectiveLight) Color.argb(130, 115, 105, 130) else Color.argb(130, 55, 52, 62)
+        val labelColor = if (effectiveLight) Color.argb(140, 28, 27, 31) else Color.argb(140, 230, 225, 229)
 
         val loc = IntArray(2)
         anchor.getLocationOnScreen(loc)
