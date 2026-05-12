@@ -729,9 +729,9 @@ class SidebarOverlayService : Service() {
         root.alpha = 0f
         root.scaleX = 0.94f
         root.scaleY = 0.94f
-        root.animate()
+        root.animate().withLayer()
             .translationX(0f).alpha(1f).scaleX(1f).scaleY(1f)
-            .setDuration(320).setInterpolator(OvershootInterpolator(1.1f))
+            .setDuration(260).setInterpolator(OvershootInterpolator(1.1f))
             .start()
     }
 
@@ -741,7 +741,7 @@ class SidebarOverlayService : Service() {
         val fromH = if (controlsExpanded) ctrlFullH else 0
         val toH   = if (controlsExpanded) 0 else ctrlFullH
         ValueAnimator.ofInt(fromH, toH).apply {
-            duration = 260
+            duration = 220
             interpolator = if (controlsExpanded) AccelerateInterpolator(1.4f) else DecelerateInterpolator(1.4f)
             addUpdateListener { anim ->
                 val h = anim.animatedValue as Int
@@ -780,9 +780,9 @@ class SidebarOverlayService : Service() {
         val handleAlt = handleViewAlt
 
         val slideTo = if (effectiveSide == "left") -dp(216).toFloat() else dp(216).toFloat()
-        panel.animate()
+        panel.animate().withLayer()
             .translationX(slideTo).alpha(0f).scaleX(0.94f).scaleY(0.94f)
-            .setDuration(200).setInterpolator(AccelerateInterpolator(1.5f))
+            .setDuration(180).setInterpolator(AccelerateInterpolator(1.5f))
             .withEndAction {
                 panel.alpha = 0f
                 runCatching { wm.removeViewImmediate(panel) }
@@ -909,8 +909,8 @@ class SidebarOverlayService : Service() {
         allAppsView = root
 
         root.alpha = 0f; root.scaleX = 0.92f; root.scaleY = 0.92f
-        root.animate().alpha(1f).scaleX(1f).scaleY(1f)
-            .setDuration(280).setInterpolator(OvershootInterpolator(1.0f)).start()
+        root.animate().withLayer().alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(240).setInterpolator(OvershootInterpolator(1.0f)).start()
 
         val pm = packageManager
         val appList = mutableListOf<Triple<String, String, Drawable>>()
@@ -998,8 +998,8 @@ class SidebarOverlayService : Service() {
         imm.hideSoftInputFromWindow(drawer.windowToken, 0)
         handleView?.visibility = View.VISIBLE
         handleViewAlt?.visibility = View.VISIBLE
-        drawer.animate().alpha(0f).scaleX(0.92f).scaleY(0.92f)
-            .setDuration(180).setInterpolator(AccelerateInterpolator(1.5f))
+        drawer.animate().withLayer().alpha(0f).scaleX(0.92f).scaleY(0.92f)
+            .setDuration(160).setInterpolator(AccelerateInterpolator(1.5f))
             .withEndAction {
                 runCatching { wm.removeViewImmediate(drawer) }
                 dismiss?.let { runCatching { wm.removeViewImmediate(it) } }
@@ -1065,13 +1065,13 @@ class SidebarOverlayService : Service() {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     touchDownX = event.rawX; touchDownY = event.rawY; touchSwiped = false
-                    tile.animate().scaleX(0.90f).scaleY(0.90f).setDuration(80).start()
+                    tile.animate().withLayer().scaleX(0.90f).scaleY(0.90f).setDuration(80).start()
                 }
                 MotionEvent.ACTION_MOVE ->
                     if (Math.abs(event.rawX - touchDownX) > dp(8) ||
                         Math.abs(event.rawY - touchDownY) > dp(8)) touchSwiped = true
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
-                    tile.animate().scaleX(1f).scaleY(1f).setDuration(200)
+                    tile.animate().withLayer().scaleX(1f).scaleY(1f).setDuration(160)
                         .setInterpolator(OvershootInterpolator(1.8f)).start()
             }
             touchSwiped
@@ -1321,9 +1321,9 @@ class SidebarOverlayService : Service() {
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN ->
-                        animate().scaleX(0.85f).scaleY(0.85f).setDuration(80).start()
+                        animate().withLayer().scaleX(0.85f).scaleY(0.85f).setDuration(80).start()
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
-                        animate().scaleX(1f).scaleY(1f).setDuration(200)
+                        animate().withLayer().scaleX(1f).scaleY(1f).setDuration(160)
                             .setInterpolator(OvershootInterpolator(2f)).start()
                 }
                 false
@@ -1447,8 +1447,8 @@ class SidebarOverlayService : Service() {
         ))
         contextMenuView = container
         menu.alpha = 0f; menu.scaleX = 0.88f; menu.scaleY = 0.88f
-        menu.animate().alpha(1f).scaleX(1f).scaleY(1f)
-            .setDuration(200).setInterpolator(OvershootInterpolator(1.5f)).start()
+        menu.animate().withLayer().alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(180).setInterpolator(OvershootInterpolator(1.5f)).start()
     }
 
     private fun hideContextMenu() {

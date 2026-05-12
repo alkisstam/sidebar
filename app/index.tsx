@@ -1,8 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
+import { Image } from "expo-image";
+import { Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
   ActivityIndicator,
   Alert,
+  Animated,
   AppState,
   AppStateStatus,
   Easing,
@@ -18,48 +22,44 @@ import {
   useColorScheme,
   View,
 } from "react-native";
-import { Image } from "expo-image";
-import Slider from "@react-native-community/slider";
-import { Ionicons } from "@expo/vector-icons";
-import { Stack } from "expo-router";
 import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
-import Sidebar, { InstalledApp, OverlaySettings, PillSettings } from "../modules/sidebar";
 import ColorPicker, { HueCircular, Panel1 } from "reanimated-color-picker";
+import Sidebar, { InstalledApp, OverlaySettings, PillSettings } from "../modules/sidebar";
 
 type Tab = "handle" | "behavior" | "control" | "apps";
 type FavItem = { key: string; name: string; icon: string | null };
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "handle",   label: "Handle",   icon: "options-outline"  },
+  { id: "handle", label: "Handle", icon: "options-outline" },
   { id: "behavior", label: "Behavior", icon: "settings-outline" },
-  { id: "control",  label: "Control",  icon: "grid-outline"     },
-  { id: "apps",     label: "Apps",     icon: "apps-outline"     },
+  { id: "control", label: "Control", icon: "grid-outline" },
+  { id: "apps", label: "Apps", icon: "apps-outline" },
 ];
 
 const DEFAULT_PILL: PillSettings = {
-  height: 80, width: 36, position: 0.5, side: "right", opacity: 1.0, theme: "dark", panelColor: "",
+  height: 80, width: 10, position: 0.5, side: "right", opacity: 0.5, theme: "dark", panelColor: "",
 };
 
 const PANEL_COLORS: { key: string }[] = [
   { key: "" },
-  { key: "#456EB0" },
-  { key: "#35176E" },
-  { key: "#215B85" },
-  { key: "#480654" },
-  { key: "#6E9EE6" },
-  { key: "#8FF2DB" },
-  { key: "#EDE6A6" },
+  { key: "#073276ff" },
+  { key: "#3c0c94ff" },
+  { key: "#65055cff" },
+  { key: "#36043fff" },
+  { key: "#9abae9ff" },
+  { key: "#a9eedeff" },
+  { key: "#ede1a6ff" },
 ];
 const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,
   quickControlsEnabled: true, showTorch: true, showAutoRotate: true, showAutoBrightness: true, showRingerMode: true,
   showAllApps: true, showEdit: true,
   gestureSwipeUp: 'none', gestureSwipeDown: 'notifications', gestureDoubleTap: 'none',
-  showBrightnessSlider: false, showVolumeSlider: false, showQuickShare: false,
-  showPower: false, showQr: false, showDnd: false,
+  showBrightnessSlider: true, showVolumeSlider: true, showQuickShare: true,
+  showPower: true, showQr: true, showDnd: true,
 };
 
 export default function Index() {
@@ -324,479 +324,479 @@ export default function Index() {
 
       <Animated.View style={{ flex: 1, transform: [{ translateX: slideAnim }] }} {...swipeResponder.panHandlers}>
 
-      {/* Handle tab */}
-      <View style={{ display: activeTab === "handle" ? "flex" : "none", flex: 1 }}>
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
-          <View style={s.section}>
-            <View style={s.settingRow}>
-              <Text style={s.settingLabel}>Side</Text>
-              <View style={s.segmented}>
-                {(["left", "right", "both"] as const).map(side => (
-                  <Pressable
-                    key={side}
-                    style={[s.segBtn, pill.side === side && s.segBtnActive]}
-                    onPress={() => setPill(p => ({ ...p, side }))}
-                  >
-                    <Text style={[s.segBtnText, pill.side === side && s.segBtnTextActive]}>
-                      {side.charAt(0).toUpperCase() + side.slice(1)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-            <View style={s.separator} />
-            <View style={s.settingRow}>
-              <Text style={s.settingLabel}>Theme</Text>
-              <View style={s.segmented}>
-                {(["dark", "light"] as const).map(t => (
-                  <Pressable
-                    key={t}
-                    style={[s.segBtn, pill.theme === t && s.segBtnActive]}
-                    onPress={() => { setPill(p => ({ ...p, theme: t })); setAppTheme(t); }}
-                  >
-                    <Text style={[s.segBtnText, pill.theme === t && s.segBtnTextActive]}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-            <View style={s.separator} />
-            <View style={[s.settingRow, { alignItems: "flex-start", paddingTop: 14, paddingBottom: 14 }]}>
-              <Text style={[s.settingLabel, { paddingTop: 5 }]}>Color</Text>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-                  {PANEL_COLORS.map(c => {
-                    const sel = pill.panelColor === c.key;
-                    return (
-                      <Pressable key={c.key} onPress={() => { setPill(p => ({ ...p, panelColor: c.key })); setShowHexInput(false); }}>
-                        <View style={{
-                          width: 34, height: 34, borderRadius: 17,
-                          borderWidth: 2.5,
-                          borderColor: sel ? colors.primary : "transparent",
-                          justifyContent: "center", alignItems: "center",
-                        }}>
-                          {c.key === "" ? (
-                            <View style={{ width: 26, height: 26, borderRadius: 13, overflow: "hidden", flexDirection: "row" }}>
-                              <View style={{ flex: 1, backgroundColor: "#1C1B1F" }} />
-                              <View style={{ flex: 1, backgroundColor: "#FFFBFE" }} />
-                            </View>
-                          ) : (
-                            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c.key }} />
-                          )}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                  {/* Custom swatch */}
-                  {(() => {
-                    const isCustom = pill.panelColor !== "" && !PANEL_COLORS.some(c => c.key === pill.panelColor);
-                    return (
-                      <Pressable onPress={() => { setHexInput(isCustom ? pill.panelColor : ""); setShowHexInput(v => !v); }}>
-                        <View style={{
-                          width: 34, height: 34, borderRadius: 17,
-                          borderWidth: 2.5,
-                          borderColor: isCustom ? colors.primary : "transparent",
-                          justifyContent: "center", alignItems: "center",
-                        }}>
-                          {isCustom ? (
-                            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: pill.panelColor }} />
-                          ) : (
-                            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: colors.surfaceContainerHigh, justifyContent: "center", alignItems: "center" }}>
-                              <Ionicons name="pencil-outline" size={13} color={colors.subtext} />
-                            </View>
-                          )}
-                        </View>
-                      </Pressable>
-                    );
-                  })()}
-                </View>
-                {showHexInput && (
-                  <View style={{ marginTop: 12 }}>
-                    <ColorPicker
-                      value={/^#[0-9A-Fa-f]{6}$/.test(pill.panelColor) ? pill.panelColor : '#6750A4'}
-                      onChangeJS={({ hex }) => setHexInput(hex.toUpperCase())}
-                      onCompleteJS={({ hex }) => {
-                        const h = hex.toUpperCase();
-                        setPill(p => ({ ...p, panelColor: h }));
-                        setHexInput(h);
-                      }}
+        {/* Handle tab */}
+        <View style={{ display: activeTab === "handle" ? "flex" : "none", flex: 1 }}>
+          <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+            <View style={s.section}>
+              <View style={s.settingRow}>
+                <Text style={s.settingLabel}>Side</Text>
+                <View style={s.segmented}>
+                  {(["left", "right", "both"] as const).map(side => (
+                    <Pressable
+                      key={side}
+                      style={[s.segBtn, pill.side === side && s.segBtnActive]}
+                      onPress={() => setPill(p => ({ ...p, side }))}
                     >
-                      <HueCircular style={{ alignSelf: "center", height: 220 }} containerStyle={{ backgroundColor: colors.surfaceContainer, justifyContent: "center", alignItems: "center" }}>
-                        <Panel1 style={{ height: 114, width: 114 }} />
-                      </HueCircular>
-                    </ColorPicker>
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 8 }}>
-                      <TextInput
-                        value={hexInput}
-                        onChangeText={setHexInput}
-                        placeholder="#RRGGBB"
-                        placeholderTextColor={colors.subtext}
-                        autoCapitalize="characters"
-                        maxLength={7}
-                        style={[s.search, { flex: 1, marginHorizontal: 0, marginBottom: 0, paddingVertical: 8 }]}
-                        onSubmitEditing={() => {
-                          const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
-                          if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-                            setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
-                            setShowHexInput(false);
-                          }
-                        }}
-                      />
-                      <Pressable
-                        style={s.grantBtn}
-                        onPress={() => {
-                          const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
-                          if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-                            setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
-                            setShowHexInput(false);
-                          }
+                      <Text style={[s.segBtnText, pill.side === side && s.segBtnTextActive]}>
+                        {side.charAt(0).toUpperCase() + side.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              <View style={s.separator} />
+              <View style={s.settingRow}>
+                <Text style={s.settingLabel}>Theme</Text>
+                <View style={s.segmented}>
+                  {(["dark", "light"] as const).map(t => (
+                    <Pressable
+                      key={t}
+                      style={[s.segBtn, pill.theme === t && s.segBtnActive]}
+                      onPress={() => { setPill(p => ({ ...p, theme: t })); setAppTheme(t); }}
+                    >
+                      <Text style={[s.segBtnText, pill.theme === t && s.segBtnTextActive]}>
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              <View style={s.separator} />
+              <View style={[s.settingRow, { alignItems: "flex-start", paddingTop: 14, paddingBottom: 14 }]}>
+                <Text style={[s.settingLabel, { paddingTop: 5 }]}>Color</Text>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                    {PANEL_COLORS.map(c => {
+                      const sel = pill.panelColor === c.key;
+                      return (
+                        <Pressable key={c.key} onPress={() => { setPill(p => ({ ...p, panelColor: c.key })); setShowHexInput(false); }}>
+                          <View style={{
+                            width: 34, height: 34, borderRadius: 17,
+                            borderWidth: 2.5,
+                            borderColor: sel ? colors.primary : "transparent",
+                            justifyContent: "center", alignItems: "center",
+                          }}>
+                            {c.key === "" ? (
+                              <View style={{ width: 26, height: 26, borderRadius: 13, overflow: "hidden", flexDirection: "row" }}>
+                                <View style={{ flex: 1, backgroundColor: "#1C1B1F" }} />
+                                <View style={{ flex: 1, backgroundColor: "#FFFBFE" }} />
+                              </View>
+                            ) : (
+                              <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c.key }} />
+                            )}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                    {/* Custom swatch */}
+                    {(() => {
+                      const isCustom = pill.panelColor !== "" && !PANEL_COLORS.some(c => c.key === pill.panelColor);
+                      return (
+                        <Pressable onPress={() => { setHexInput(isCustom ? pill.panelColor : ""); setShowHexInput(v => !v); }}>
+                          <View style={{
+                            width: 34, height: 34, borderRadius: 17,
+                            borderWidth: 2.5,
+                            borderColor: isCustom ? colors.primary : "transparent",
+                            justifyContent: "center", alignItems: "center",
+                          }}>
+                            {isCustom ? (
+                              <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: pill.panelColor }} />
+                            ) : (
+                              <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: colors.surfaceContainerHigh, justifyContent: "center", alignItems: "center" }}>
+                                <Ionicons name="pencil-outline" size={13} color={colors.subtext} />
+                              </View>
+                            )}
+                          </View>
+                        </Pressable>
+                      );
+                    })()}
+                  </View>
+                  {showHexInput && (
+                    <View style={{ marginTop: 12 }}>
+                      <ColorPicker
+                        value={/^#[0-9A-Fa-f]{6}$/.test(pill.panelColor) ? pill.panelColor : '#6750A4'}
+                        onChangeJS={({ hex }) => setHexInput(hex.toUpperCase())}
+                        onCompleteJS={({ hex }) => {
+                          const h = hex.toUpperCase();
+                          setPill(p => ({ ...p, panelColor: h }));
+                          setHexInput(h);
                         }}
                       >
-                        <Text style={s.grantBtnText}>Apply</Text>
-                      </Pressable>
+                        <HueCircular style={{ alignSelf: "center", height: 220 }} containerStyle={{ backgroundColor: colors.surfaceContainer, justifyContent: "center", alignItems: "center" }}>
+                          <Panel1 style={{ height: 114, width: 114 }} />
+                        </HueCircular>
+                      </ColorPicker>
+                      <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 8 }}>
+                        <TextInput
+                          value={hexInput}
+                          onChangeText={setHexInput}
+                          placeholder="#RRGGBB"
+                          placeholderTextColor={colors.subtext}
+                          autoCapitalize="characters"
+                          maxLength={7}
+                          style={[s.search, { flex: 1, marginHorizontal: 0, marginBottom: 0, paddingVertical: 8 }]}
+                          onSubmitEditing={() => {
+                            const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
+                            if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                              setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
+                              setShowHexInput(false);
+                            }
+                          }}
+                        />
+                        <Pressable
+                          style={s.grantBtn}
+                          onPress={() => {
+                            const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
+                            if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                              setPill(p => ({ ...p, panelColor: hex.toUpperCase() }));
+                              setShowHexInput(false);
+                            }
+                          }}
+                        >
+                          <Text style={s.grantBtnText}>Apply</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <View style={s.separator} />
+              <SliderRow label="Position" min={0} max={1} step={0.01}
+                value={pill.position} display={pill.position.toFixed(2)}
+                leftEdge="Top" rightEdge="Bot"
+                onChange={v => setPill(p => ({ ...p, position: v }))}
+                colors={colors} s={s} />
+              <View style={s.separator} />
+              <SliderRow label="Height" min={40} max={200} step={1}
+                value={pill.height} display={`${Math.round(pill.height)}`}
+                onChange={v => setPill(p => ({ ...p, height: Math.round(v) }))}
+                colors={colors} s={s} />
+              <View style={s.separator} />
+              <SliderRow label="Width" min={2} max={40} step={1}
+                value={pill.width} display={`${Math.round(pill.width)}`}
+                onChange={v => setPill(p => ({ ...p, width: Math.round(v) }))}
+                colors={colors} s={s} />
+              <View style={s.separator} />
+              <SliderRow label="Opacity" min={0} max={1} step={0.05}
+                value={pill.opacity} display={pill.opacity.toFixed(2)}
+                onChange={v => setPill(p => ({ ...p, opacity: parseFloat(v.toFixed(2)) }))}
+                colors={colors} s={s} />
+              <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveHandle} disabled={saving}>
+                <Text style={s.saveBtnText}>{saving ? "Saving…" : "Save Handle Settings"}</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Behavior tab */}
+        <View style={{ display: activeTab === "behavior" ? "flex" : "none", flex: 1 }}>
+          <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+            <View style={s.section}>
+              <View style={s.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>Auto-hide in fullscreen</Text>
+                  <Text style={s.rowSub}>Hide pull-tab when an app is fullscreen</Text>
+                </View>
+                <Switch
+                  value={overlay.autoHideFullscreen}
+                  onValueChange={v => setOverlay(p => ({ ...p, autoHideFullscreen: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1 }]}>Show app labels</Text>
+                <Switch
+                  value={overlay.showLabels}
+                  onValueChange={v => setOverlay(p => ({ ...p, showLabels: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1 }]}>Vibration feedback</Text>
+                <Switch
+                  value={overlay.vibration}
+                  onValueChange={v => setOverlay(p => ({ ...p, vibration: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <SliderRow label="Sensitivity" min={8} max={48} step={1}
+                value={overlay.sensitivity} display={`${overlay.sensitivity}`}
+                leftEdge="High" rightEdge="Low"
+                onChange={v => setOverlay(p => ({ ...p, sensitivity: Math.round(v) }))}
+                colors={colors} s={s} />
+              <View style={s.separator} />
+              <Text style={[s.rowLabel, { marginBottom: 10 }]}>Pill gestures</Text>
+              {(['gestureSwipeUp', 'gestureSwipeDown', 'gestureDoubleTap'] as const).map((key, i) => {
+                const labels = ['Swipe up', 'Swipe down', 'Double tap'];
+                const actions = [
+                  { value: 'none', label: 'Off' },
+                  { value: 'panel', label: 'Panel' },
+                  { value: 'notifications', label: 'Notifs' },
+                  { value: 'quick_settings', label: 'QS' },
+                  { value: 'all_apps', label: 'Apps' },
+                ] as const;
+                return (
+                  <View key={key} style={{ marginBottom: i < 2 ? 10 : 0 }}>
+                    <Text style={[s.rowSub, { marginBottom: 6 }]}>{labels[i]}</Text>
+                    <View style={s.segmented}>
+                      {actions.map(a => (
+                        <Pressable
+                          key={a.value}
+                          style={[s.segBtnSm, overlay[key] === a.value && s.segBtnActive]}
+                          onPress={() => setOverlay(p => ({ ...p, [key]: a.value }))}
+                        >
+                          <Text style={[s.segBtnSmText, overlay[key] === a.value && s.segBtnTextActive]}>
+                            {a.label}
+                          </Text>
+                        </Pressable>
+                      ))}
                     </View>
                   </View>
-                )}
-              </View>
+                );
+              })}
+              <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
+                <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save Behavior Settings"}</Text>
+              </Pressable>
             </View>
-            <View style={s.separator} />
-            <SliderRow label="Position" min={0} max={1} step={0.01}
-              value={pill.position} display={pill.position.toFixed(2)}
-              leftEdge="Top" rightEdge="Bot"
-              onChange={v => setPill(p => ({ ...p, position: v }))}
-              colors={colors} s={s} />
-            <View style={s.separator} />
-            <SliderRow label="Height" min={40} max={200} step={1}
-              value={pill.height} display={`${Math.round(pill.height)}`}
-              onChange={v => setPill(p => ({ ...p, height: Math.round(v) }))}
-              colors={colors} s={s} />
-            <View style={s.separator} />
-            <SliderRow label="Width" min={2} max={40} step={1}
-              value={pill.width} display={`${Math.round(pill.width)}`}
-              onChange={v => setPill(p => ({ ...p, width: Math.round(v) }))}
-              colors={colors} s={s} />
-            <View style={s.separator} />
-            <SliderRow label="Opacity" min={0} max={1} step={0.05}
-              value={pill.opacity} display={pill.opacity.toFixed(2)}
-              onChange={v => setPill(p => ({ ...p, opacity: parseFloat(v.toFixed(2)) }))}
-              colors={colors} s={s} />
-            <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveHandle} disabled={saving}>
-              <Text style={s.saveBtnText}>{saving ? "Saving…" : "Save Handle Settings"}</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-      </View>
-
-      {/* Behavior tab */}
-      <View style={{ display: activeTab === "behavior" ? "flex" : "none", flex: 1 }}>
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
-          <View style={s.section}>
-            <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowLabel}>Auto-hide in fullscreen</Text>
-                <Text style={s.rowSub}>Hide pull-tab when an app is fullscreen</Text>
-              </View>
-              <Switch
-                value={overlay.autoHideFullscreen}
-                onValueChange={v => setOverlay(p => ({ ...p, autoHideFullscreen: v }))}
-                trackColor={{ true: colors.tint }}
-              />
-            </View>
-            <View style={s.separator} />
-            <View style={s.row}>
-              <Text style={[s.rowLabel, { flex: 1 }]}>Show app labels</Text>
-              <Switch
-                value={overlay.showLabels}
-                onValueChange={v => setOverlay(p => ({ ...p, showLabels: v }))}
-                trackColor={{ true: colors.tint }}
-              />
-            </View>
-            <View style={s.separator} />
-            <View style={s.row}>
-              <Text style={[s.rowLabel, { flex: 1 }]}>Vibration feedback</Text>
-              <Switch
-                value={overlay.vibration}
-                onValueChange={v => setOverlay(p => ({ ...p, vibration: v }))}
-                trackColor={{ true: colors.tint }}
-              />
-            </View>
-            <View style={s.separator} />
-            <SliderRow label="Sensitivity" min={8} max={48} step={1}
-              value={overlay.sensitivity} display={`${overlay.sensitivity}`}
-              leftEdge="High" rightEdge="Low"
-              onChange={v => setOverlay(p => ({ ...p, sensitivity: Math.round(v) }))}
-              colors={colors} s={s} />
-            <View style={s.separator} />
-            <Text style={[s.rowLabel, { marginBottom: 10 }]}>Pill gestures</Text>
-            {(['gestureSwipeUp', 'gestureSwipeDown', 'gestureDoubleTap'] as const).map((key, i) => {
-              const labels = ['Swipe up', 'Swipe down', 'Double tap'];
-              const actions = [
-                { value: 'none', label: 'Off' },
-                { value: 'panel', label: 'Panel' },
-                { value: 'notifications', label: 'Notifs' },
-                { value: 'quick_settings', label: 'QS' },
-                { value: 'all_apps', label: 'Apps' },
-              ] as const;
-              return (
-                <View key={key} style={{ marginBottom: i < 2 ? 10 : 0 }}>
-                  <Text style={[s.rowSub, { marginBottom: 6 }]}>{labels[i]}</Text>
-                  <View style={s.segmented}>
-                    {actions.map(a => (
-                      <Pressable
-                        key={a.value}
-                        style={[s.segBtnSm, overlay[key] === a.value && s.segBtnActive]}
-                        onPress={() => setOverlay(p => ({ ...p, [key]: a.value }))}
-                      >
-                        <Text style={[s.segBtnSmText, overlay[key] === a.value && s.segBtnTextActive]}>
-                          {a.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              );
-            })}
-            <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
-              <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save Behavior Settings"}</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-      </View>
-
-      {/* Control tab */}
-      <View style={{ display: activeTab === "control" ? "flex" : "none", flex: 1 }}>
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
-          <View style={s.section}>
-            <View style={s.row}>
-              <Text style={[s.rowLabel, { flex: 1 }]}>Quick controls</Text>
-              <Switch
-                value={overlay.quickControlsEnabled}
-                onValueChange={v => setOverlay(p => ({ ...p, quickControlsEnabled: v }))}
-                trackColor={{ true: colors.tint }}
-              />
-            </View>
-            {overlay.quickControlsEnabled && <>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Torch</Text>
-                <Switch
-                  value={overlay.showTorch}
-                  onValueChange={v => setOverlay(p => ({ ...p, showTorch: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Auto-rotate</Text>
-                <Switch
-                  value={overlay.showAutoRotate}
-                  onValueChange={v => setOverlay(p => ({ ...p, showAutoRotate: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Auto-brightness</Text>
-                <Switch
-                  value={overlay.showAutoBrightness}
-                  onValueChange={v => setOverlay(p => ({ ...p, showAutoBrightness: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Ringer mode</Text>
-                <Switch
-                  value={overlay.showRingerMode}
-                  onValueChange={v => setOverlay(p => ({ ...p, showRingerMode: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Brightness slider</Text>
-                <Switch
-                  value={overlay.showBrightnessSlider}
-                  onValueChange={v => setOverlay(p => ({ ...p, showBrightnessSlider: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Volume slider</Text>
-                <Switch
-                  value={overlay.showVolumeSlider}
-                  onValueChange={v => setOverlay(p => ({ ...p, showVolumeSlider: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Quick Share</Text>
-                <Switch
-                  value={overlay.showQuickShare}
-                  onValueChange={v => setOverlay(p => ({ ...p, showQuickShare: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Power menu</Text>
-                <Switch
-                  value={overlay.showPower}
-                  onValueChange={v => setOverlay(p => ({ ...p, showPower: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>QR scanner</Text>
-                <Switch
-                  value={overlay.showQr}
-                  onValueChange={v => setOverlay(p => ({ ...p, showQr: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Do Not Disturb</Text>
-                <Switch
-                  value={overlay.showDnd}
-                  onValueChange={v => setOverlay(p => ({ ...p, showDnd: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>All Apps</Text>
-                <Switch
-                  value={overlay.showAllApps}
-                  onValueChange={v => setOverlay(p => ({ ...p, showAllApps: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              <View style={s.separator} />
-              <View style={s.row}>
-                <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Edit</Text>
-                <Switch
-                  value={overlay.showEdit}
-                  onValueChange={v => setOverlay(p => ({ ...p, showEdit: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-            </>}
-          </View>
-          <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
-            <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save"}</Text>
-          </Pressable>
-          {(() => {
-            const granted = [permissionGranted, dndPerm, writePerm].filter(Boolean).length;
-            return (
-              <Text style={s.permCount}>{granted} / 3 permissions granted</Text>
-            );
-          })()}
-          <View style={s.section}>
-            <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowLabel}>Display over other apps</Text>
-                <Text style={s.rowSub}>{permissionGranted ? "Permission granted" : "Required to show the sidebar handle"}</Text>
-              </View>
-              {permissionGranted
-                ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                : <Pressable style={s.grantBtn} onPress={Sidebar.requestOverlayPermission}>
-                    <Text style={s.grantBtnText}>Grant</Text>
-                  </Pressable>
-              }
-            </View>
-            <View style={s.separator} />
-            <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowLabel}>Do Not Disturb</Text>
-                <Text style={s.rowSub}>{dndPerm ? "Permission granted" : "Required for DND control tile"}</Text>
-              </View>
-              {dndPerm
-                ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                : <Pressable style={s.grantBtn} onPress={Sidebar.requestDndPermission}>
-                    <Text style={s.grantBtnText}>Grant</Text>
-                  </Pressable>
-              }
-            </View>
-            <View style={s.separator} />
-            <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowLabel}>Auto-rotate & Brightness</Text>
-                <Text style={s.rowSub}>{writePerm ? "Permission granted" : "Required to modify system settings"}</Text>
-              </View>
-              {writePerm
-                ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                : <Pressable style={s.grantBtn} onPress={Sidebar.requestWriteSettingsPermission}>
-                    <Text style={s.grantBtnText}>Grant</Text>
-                  </Pressable>
-              }
-            </View>
-          </View>
-          <Pressable style={[s.saveBtn, s.openSettingsBtn]} onPress={() => Linking.openSettings()}>
-            <Ionicons name="settings-outline" size={16} color={colors.onPrimary} style={{ marginRight: 8 }} />
-            <Text style={s.saveBtnText}>Open App Settings</Text>
-          </Pressable>
-        </ScrollView>
-      </View>
-
-      {/* Apps tab — lazy-mounted so DraggableFlatList first renders while visible */}
-      {appsTabMountedRef.current && <View style={{ display: activeTab === "apps" ? "flex" : "none", flex: 1 }}>
-        <View style={s.appsPane}>
-          {/* Left: all apps grid */}
-          <View style={s.appsLeft}>
-            <TextInput
-              style={s.search}
-              placeholder="Search apps…"
-              placeholderTextColor={colors.subtext}
-              value={query}
-              onChangeText={setQuery}
-              clearButtonMode="while-editing"
-            />
-            {appsLoading ? (
-              <ActivityIndicator style={{ marginTop: 32 }} color={colors.tint} />
-            ) : (
-              <FlatList
-                data={filteredApps}
-                keyExtractor={item => item.packageName}
-                renderItem={renderAppCell}
-                numColumns={3}
-                extraData={favSet}
-                contentContainerStyle={s.appGrid}
-                showsVerticalScrollIndicator={false}
-              />
-            )}
-          </View>
-
-          <View style={s.paneDiv} />
-
-          {/* Right: favorites */}
-          <View style={s.appsRight}>
-            <Text style={s.favHeader}>Favorites</Text>
-            <DraggableFlatList
-              data={listData}
-              keyExtractor={item => item.key}
-              renderItem={renderFavItem}
-              onDragEnd={({ data }) => setListData(data)}
-              containerStyle={{ flex: 1 }}
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <Text style={s.favEmpty}>Tap apps on the left to add.</Text>
-              }
-            />
-            <Pressable
-              style={[s.saveBtn, s.saveBtnCompact, appsSaving && s.saveBtnDisabled]}
-              onPress={saveFavs}
-              disabled={appsSaving}
-            >
-              <Text style={s.saveBtnText}>{appsSaving ? "Saving…" : "Save"}</Text>
-            </Pressable>
-          </View>
+          </ScrollView>
         </View>
-      </View>}
+
+        {/* Control tab */}
+        <View style={{ display: activeTab === "control" ? "flex" : "none", flex: 1 }}>
+          <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+            <View style={s.section}>
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1 }]}>Quick controls</Text>
+                <Switch
+                  value={overlay.quickControlsEnabled}
+                  onValueChange={v => setOverlay(p => ({ ...p, quickControlsEnabled: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              {overlay.quickControlsEnabled && <>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Torch</Text>
+                  <Switch
+                    value={overlay.showTorch}
+                    onValueChange={v => setOverlay(p => ({ ...p, showTorch: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Auto-rotate</Text>
+                  <Switch
+                    value={overlay.showAutoRotate}
+                    onValueChange={v => setOverlay(p => ({ ...p, showAutoRotate: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Auto-brightness</Text>
+                  <Switch
+                    value={overlay.showAutoBrightness}
+                    onValueChange={v => setOverlay(p => ({ ...p, showAutoBrightness: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Ringer mode</Text>
+                  <Switch
+                    value={overlay.showRingerMode}
+                    onValueChange={v => setOverlay(p => ({ ...p, showRingerMode: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Brightness slider</Text>
+                  <Switch
+                    value={overlay.showBrightnessSlider}
+                    onValueChange={v => setOverlay(p => ({ ...p, showBrightnessSlider: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Volume slider</Text>
+                  <Switch
+                    value={overlay.showVolumeSlider}
+                    onValueChange={v => setOverlay(p => ({ ...p, showVolumeSlider: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Quick Share</Text>
+                  <Switch
+                    value={overlay.showQuickShare}
+                    onValueChange={v => setOverlay(p => ({ ...p, showQuickShare: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Power menu</Text>
+                  <Switch
+                    value={overlay.showPower}
+                    onValueChange={v => setOverlay(p => ({ ...p, showPower: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>QR scanner</Text>
+                  <Switch
+                    value={overlay.showQr}
+                    onValueChange={v => setOverlay(p => ({ ...p, showQr: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Do Not Disturb</Text>
+                  <Switch
+                    value={overlay.showDnd}
+                    onValueChange={v => setOverlay(p => ({ ...p, showDnd: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>All Apps</Text>
+                  <Switch
+                    value={overlay.showAllApps}
+                    onValueChange={v => setOverlay(p => ({ ...p, showAllApps: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <View style={s.separator} />
+                <View style={s.row}>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Edit</Text>
+                  <Switch
+                    value={overlay.showEdit}
+                    onValueChange={v => setOverlay(p => ({ ...p, showEdit: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+              </>}
+            </View>
+            <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
+              <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save"}</Text>
+            </Pressable>
+            {(() => {
+              const granted = [permissionGranted, dndPerm, writePerm].filter(Boolean).length;
+              return (
+                <Text style={s.permCount}>{granted} / 3 permissions granted</Text>
+              );
+            })()}
+            <View style={s.section}>
+              <View style={s.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>Display over other apps</Text>
+                  <Text style={s.rowSub}>{permissionGranted ? "Permission granted" : "Required to show the sidebar handle"}</Text>
+                </View>
+                {permissionGranted
+                  ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  : <Pressable style={s.grantBtn} onPress={Sidebar.requestOverlayPermission}>
+                    <Text style={s.grantBtnText}>Grant</Text>
+                  </Pressable>
+                }
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>Do Not Disturb</Text>
+                  <Text style={s.rowSub}>{dndPerm ? "Permission granted" : "Required for DND control tile"}</Text>
+                </View>
+                {dndPerm
+                  ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  : <Pressable style={s.grantBtn} onPress={Sidebar.requestDndPermission}>
+                    <Text style={s.grantBtnText}>Grant</Text>
+                  </Pressable>
+                }
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>Auto-rotate & Brightness</Text>
+                  <Text style={s.rowSub}>{writePerm ? "Permission granted" : "Required to modify system settings"}</Text>
+                </View>
+                {writePerm
+                  ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  : <Pressable style={s.grantBtn} onPress={Sidebar.requestWriteSettingsPermission}>
+                    <Text style={s.grantBtnText}>Grant</Text>
+                  </Pressable>
+                }
+              </View>
+            </View>
+            <Pressable style={[s.saveBtn, s.openSettingsBtn]} onPress={() => Linking.openSettings()}>
+              <Ionicons name="settings-outline" size={16} color={colors.onPrimary} style={{ marginRight: 8 }} />
+              <Text style={s.saveBtnText}>Open App Settings</Text>
+            </Pressable>
+          </ScrollView>
+        </View>
+
+        {/* Apps tab — lazy-mounted so DraggableFlatList first renders while visible */}
+        {appsTabMountedRef.current && <View style={{ display: activeTab === "apps" ? "flex" : "none", flex: 1 }}>
+          <View style={s.appsPane}>
+            {/* Left: all apps grid */}
+            <View style={s.appsLeft}>
+              <TextInput
+                style={s.search}
+                placeholder="Search apps…"
+                placeholderTextColor={colors.subtext}
+                value={query}
+                onChangeText={setQuery}
+                clearButtonMode="while-editing"
+              />
+              {appsLoading ? (
+                <ActivityIndicator style={{ marginTop: 32 }} color={colors.tint} />
+              ) : (
+                <FlatList
+                  data={filteredApps}
+                  keyExtractor={item => item.packageName}
+                  renderItem={renderAppCell}
+                  numColumns={3}
+                  extraData={favSet}
+                  contentContainerStyle={s.appGrid}
+                  showsVerticalScrollIndicator={false}
+                />
+              )}
+            </View>
+
+            <View style={s.paneDiv} />
+
+            {/* Right: favorites */}
+            <View style={s.appsRight}>
+              <Text style={s.favHeader}>Favorites</Text>
+              <DraggableFlatList
+                data={listData}
+                keyExtractor={item => item.key}
+                renderItem={renderFavItem}
+                onDragEnd={({ data }) => setListData(data)}
+                containerStyle={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <Text style={s.favEmpty}>Tap apps on the left to add.</Text>
+                }
+              />
+              <Pressable
+                style={[s.saveBtn, s.saveBtnCompact, appsSaving && s.saveBtnDisabled]}
+                onPress={saveFavs}
+                disabled={appsSaving}
+              >
+                <Text style={s.saveBtnText}>{appsSaving ? "Saving…" : "Save"}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>}
 
       </Animated.View>
 
@@ -864,23 +864,23 @@ function SliderRow({
 function makeColors(scheme: ReturnType<typeof useColorScheme>) {
   const dark = scheme === "dark";
   return {
-    bg:                   dark ? "#141218" : "#FFFBFE",
-    surfaceContainer:     dark ? "#211F26" : "#F3EFF7",
+    bg: dark ? "#141218" : "#FFFBFE",
+    surfaceContainer: dark ? "#211F26" : "#F3EFF7",
     surfaceContainerHigh: dark ? "#2B2930" : "#EDE8F2",
-    card:                 dark ? "#211F26" : "#F3EFF7",
-    primary:              dark ? "#D0BCFF" : "#6750A4",
-    onPrimary:            dark ? "#381E72" : "#FFFFFF",
-    primaryContainer:     dark ? "#4F378B" : "#EADDFF",
-    onPrimaryContainer:   dark ? "#EADDFF" : "#21005D",
-    secondaryContainer:   dark ? "#4A4458" : "#E8DEF8",
+    card: dark ? "#211F26" : "#F3EFF7",
+    primary: dark ? "#D0BCFF" : "#6750A4",
+    onPrimary: dark ? "#381E72" : "#FFFFFF",
+    primaryContainer: dark ? "#4F378B" : "#EADDFF",
+    onPrimaryContainer: dark ? "#EADDFF" : "#21005D",
+    secondaryContainer: dark ? "#4A4458" : "#E8DEF8",
     onSecondaryContainer: dark ? "#E8DEF8" : "#1D192B",
-    text:                 dark ? "#E6E1E5" : "#1C1B1F",
-    subtext:              dark ? "#CAC4D0" : "#49454F",
-    outline:              dark ? "#938F99" : "#79747E",
-    separator:            dark ? "#49454F" : "#CAC4D0",
-    tint:                 dark ? "#D0BCFF" : "#6750A4",
-    errorContainer:       dark ? "#8C1D18" : "#F9DEDC",
-    onErrorContainer:     dark ? "#F2B8B5" : "#410E0B",
+    text: dark ? "#E6E1E5" : "#1C1B1F",
+    subtext: dark ? "#CAC4D0" : "#49454F",
+    outline: dark ? "#938F99" : "#79747E",
+    separator: dark ? "#49454F" : "#CAC4D0",
+    tint: dark ? "#D0BCFF" : "#6750A4",
+    errorContainer: dark ? "#8C1D18" : "#F9DEDC",
+    onErrorContainer: dark ? "#F2B8B5" : "#410E0B",
   };
 }
 
