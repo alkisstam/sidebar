@@ -40,7 +40,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ];
 
 const DEFAULT_PILL: PillSettings = {
-  height: 80, width: 36, position: 0.5, side: "left", opacity: 1.0, theme: "dark", panelColor: "",
+  height: 80, width: 36, position: 0.5, side: "right", opacity: 1.0, theme: "dark", panelColor: "",
 };
 
 const PANEL_COLORS: { key: string }[] = [
@@ -125,13 +125,15 @@ export default function Index() {
   const [query, setQuery] = useState("");
   const [appsLoading, setAppsLoading] = useState(false);
   const [appsSaving, setAppsSaving] = useState(false);
-  const [appsTabMounted, setAppsTabMounted] = useState(false);
+  const appsTabMountedRef = useRef(false);
+  if (activeTab === "apps") appsTabMountedRef.current = true;
   const appsLoadedRef = useRef(false);
   // Holds the saved package list until apps finish loading so we can seed listData.
   const pendingFavsRef = useRef<string[]>([]);
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
+  // Initial data fetch — runs once on mount.
   useEffect(() => {
     Promise.all([
       Sidebar.hasOverlayPermission(),
@@ -151,7 +153,10 @@ export default function Index() {
       setWritePerm(write);
       pendingFavsRef.current = favs;
     });
+  }, []);
 
+  // AppState listener — re-registered whenever changeTab changes (it's memoised, so rarely).
+  useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
       if (appState.current !== "active" && next === "active") {
         Promise.all([
@@ -169,10 +174,9 @@ export default function Index() {
       appState.current = next;
     });
     return () => sub.remove();
-  }, []);
+  }, [changeTab]);
 
   useEffect(() => {
-    if (activeTab === "apps") setAppsTabMounted(true);
     if (activeTab === "apps" && !appsLoadedRef.current) {
       appsLoadedRef.current = true;
       setAppsLoading(true);
@@ -196,7 +200,11 @@ export default function Index() {
   async function toggleService(value: boolean) {
     setServiceEnabled(value);
     try {
-      value ? await Sidebar.startService() : await Sidebar.stopService();
+      if (value) {
+        await Sidebar.startService();
+      } else {
+        await Sidebar.stopService();
+      }
     } catch {
       setServiceEnabled(!value);
       Alert.alert("Error", `Failed to ${value ? "start" : "stop"} the sidebar service.`);
@@ -293,7 +301,7 @@ export default function Index() {
         <View style={s.banner}>
           <Text style={s.bannerTitle}>Overlay permission required</Text>
           <Text style={s.bannerBody}>
-            This app needs "Display over other apps" permission to show the sidebar handle.
+            This app needs {'"'}Display over other apps{'"'} permission to show the sidebar handle.
           </Text>
           <Pressable style={s.bannerBtn} onPress={Sidebar.requestOverlayPermission}>
             <Text style={s.bannerBtnText}>Grant Permission</Text>
@@ -736,7 +744,7 @@ export default function Index() {
       </View>
 
       {/* Apps tab — lazy-mounted so DraggableFlatList first renders while visible */}
-      {appsTabMounted && <View style={{ display: activeTab === "apps" ? "flex" : "none", flex: 1 }}>
+      {appsTabMountedRef.current && <View style={{ display: activeTab === "apps" ? "flex" : "none", flex: 1 }}>
         <View style={s.appsPane}>
           {/* Left: all apps grid */}
           <View style={s.appsLeft}>

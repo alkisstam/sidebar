@@ -138,11 +138,15 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("theme")) prefs.putString(Prefs.PILL_THEME, settings.getString("theme"))
         if (settings.hasKey("panelColor")) prefs.putString(Prefs.PANEL_COLOR, settings.getString("panelColor") ?: "")
         prefs.apply()
-        val intent = Intent(reactContext, SidebarOverlayService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            reactContext.startForegroundService(intent)
-        } else {
-            reactContext.startService(intent)
+        val serviceEnabled = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
+            .getBoolean(Prefs.SERVICE_ENABLED, false)
+        if (serviceEnabled) {
+            val intent = Intent(reactContext, SidebarOverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                reactContext.startForegroundService(intent)
+            } else {
+                reactContext.startService(intent)
+            }
         }
         promise.resolve(null)
     }
@@ -212,11 +216,15 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("showQr")) prefs.putBoolean(Prefs.SHOW_QR, settings.getBoolean("showQr"))
         if (settings.hasKey("showDnd")) prefs.putBoolean(Prefs.SHOW_DND, settings.getBoolean("showDnd"))
         prefs.apply()
-        val intent = Intent(reactContext, SidebarOverlayService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            reactContext.startForegroundService(intent)
-        } else {
-            reactContext.startService(intent)
+        val serviceEnabled = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
+            .getBoolean(Prefs.SERVICE_ENABLED, false)
+        if (serviceEnabled) {
+            val intent = Intent(reactContext, SidebarOverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                reactContext.startForegroundService(intent)
+            } else {
+                reactContext.startService(intent)
+            }
         }
         promise.resolve(null)
     }
@@ -273,6 +281,11 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         val out = ByteArrayOutputStream()
         scaled.compress(Bitmap.CompressFormat.PNG, 85, out)
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+    }
+
+    override fun invalidate() {
+        super.invalidate()
+        executor.shutdown()
     }
 
     companion object {
