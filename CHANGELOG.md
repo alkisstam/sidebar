@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Updated color presets 4 and 6 (`#36043f` → `#084f36`, `#a9eede` → `#c2eea9`)
+
 ## [1.8.0] - 2026-05-12
 
 ### Added
