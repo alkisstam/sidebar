@@ -55,6 +55,10 @@ class SidebarOverlayService : Service() {
     private var controlsExpanded = false
     private var ctrlFullH = 0
 
+    private val iconTypeface: android.graphics.Typeface by lazy {
+        android.graphics.Typeface.createFromAsset(assets, "fonts/MaterialIcons-Regular.ttf")
+    }
+
     private val appLoadExecutor = Executors.newSingleThreadExecutor()
     // Keyed by package name; populated on service start so panel and drawer open instantly.
     private val appIconCache = ConcurrentHashMap<String, Pair<String, Drawable>>()
@@ -503,14 +507,14 @@ class SidebarOverlayService : Service() {
 
             if (oPrefs.showBrightnessSlider) {
                 controlsStrip.addView(makeSliderRow(
-                    "☀", getBrightness(), 0, 255, labelColor, tileActive, tileBg
+                    "", getBrightness(), 0, 255, labelColor, tileActive, tileBg
                 ) { setBrightness(it) }, LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }
             if (oPrefs.showVolumeSlider) {
                 val am = getSystemService(AUDIO_SERVICE) as AudioManager
                 controlsStrip.addView(makeSliderRow(
-                    "🔊", am.getStreamVolume(AudioManager.STREAM_MUSIC),
+                    "", am.getStreamVolume(AudioManager.STREAM_MUSIC),
                     0, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
                     labelColor, tileActive, tileBg
                 ) { v ->
@@ -528,9 +532,9 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { if (controlsStrip.childCount > 0) topMargin = dp(6) }
             }
-            if (oPrefs.showTorch) ctrlRow1.addView(makeControlTile("Torch", { "⚡" }, tileBg, tileActive,
+            if (oPrefs.showTorch) ctrlRow1.addView(makeControlTile("Torch", { "" }, tileBg, tileActive,
                 { torchEnabled }, { if (torchEnabled) "On" else "Off" }, stripGd) { toggleTorch() })
-            if (oPrefs.showAutoRotate) ctrlRow1.addView(makeControlTile("Rotate", { "↻" }, tileBg, tileActive,
+            if (oPrefs.showAutoRotate) ctrlRow1.addView(makeControlTile("Rotate", { "" }, tileBg, tileActive,
                 { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }, stripGd) { toggleAutoRotate() })
             if (ctrlRow1.childCount > 0) controlsStrip.addView(ctrlRow1)
 
@@ -540,11 +544,11 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(6) }
             }
-            if (oPrefs.showAutoBrightness) ctrlRow2.addView(makeControlTile("Brightness", { "☀" }, tileBg, tileActive,
+            if (oPrefs.showAutoBrightness) ctrlRow2.addView(makeControlTile("Brightness", { "" }, tileBg, tileActive,
                 { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }, stripGd) { toggleAutoBrightness() })
             if (oPrefs.showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
                 { isRingerActive() }, { getRingerSubtitle() }, stripGd) { toggleRingerMode() })
-            if (oPrefs.showQuickShare) ctrlRow2.addView(makeControlTile("Share", { "⇅" }, tileBg, tileActive,
+            if (oPrefs.showQuickShare) ctrlRow2.addView(makeControlTile("Share", { "" }, tileBg, tileActive,
                 { false }, { "" }, stripGd) { launchQuickShare() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
 
@@ -554,11 +558,11 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(6) }
             }
-            if (oPrefs.showPower) ctrlRow3.addView(makeControlTile("Power", { "🔌" }, tileBg, tileActive,
+            if (oPrefs.showPower) ctrlRow3.addView(makeControlTile("Power", { "" }, tileBg, tileActive,
                 { false }, { "" }, stripGd) { openPowerMenu() })
-            if (oPrefs.showQr) ctrlRow3.addView(makeControlTile("QR Scan", { "⬚" }, tileBg, tileActive,
+            if (oPrefs.showQr) ctrlRow3.addView(makeControlTile("QR Scan", { "" }, tileBg, tileActive,
                 { false }, { "" }, stripGd) { launchQrScanner() })
-            if (oPrefs.showDnd) ctrlRow3.addView(makeControlTile("DND", { if (isDndEnabled()) "🔕" else "🔔" }, tileBg, tileActive,
+            if (oPrefs.showDnd) ctrlRow3.addView(makeControlTile("DND", { if (isDndEnabled()) "" else "" }, tileBg, tileActive,
                 { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }, stripGd) { toggleDnd() })
             if (ctrlRow3.childCount > 0) controlsStrip.addView(ctrlRow3)
         }
@@ -569,9 +573,9 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { if (hasQC && controlsStrip.childCount > 0) topMargin = dp(6) }
             }
-            if (oPrefs.showAllApps) actionsRow.addView(makeControlTile("All Apps", { "⊞" }, tileBg, tileActive,
+            if (oPrefs.showAllApps) actionsRow.addView(makeControlTile("All Apps", { "" }, tileBg, tileActive,
                 { false }, { "" }) { showAllAppsDrawer() })
-            if (oPrefs.showEdit) actionsRow.addView(makeControlTile("Edit", { "✏" }, tileBg, tileActive,
+            if (oPrefs.showEdit) actionsRow.addView(makeControlTile("Edit", { "" }, tileBg, tileActive,
                 { false }, { "" }) {
                 hidePanel()
                 getSharedPreferences(Prefs.FILE, MODE_PRIVATE).edit().putString(Prefs.LAUNCH_TAB, "apps").apply()
@@ -1026,6 +1030,7 @@ class SidebarOverlayService : Service() {
             textSize = 20f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
+            typeface = iconTypeface
         }
         val subtitleTv = TextView(this).apply {
             textSize = 9f
@@ -1126,9 +1131,9 @@ class SidebarOverlayService : Service() {
         (getSystemService(AUDIO_SERVICE) as AudioManager).ringerMode
 
     private fun getRingerIcon(): String = when (getRingerMode()) {
-        AudioManager.RINGER_MODE_SILENT  -> "🔕"
-        AudioManager.RINGER_MODE_VIBRATE -> "📳"
-        else                             -> "🔔"
+        AudioManager.RINGER_MODE_SILENT  -> ""  // notifications_off
+        AudioManager.RINGER_MODE_VIBRATE -> ""  // vibration
+        else                             -> ""  // notifications
     }
 
     private fun getRingerSubtitle(): String = when (getRingerMode()) {
@@ -1248,9 +1253,10 @@ class SidebarOverlayService : Service() {
         }
         row.addView(TextView(this).apply {
             text = icon
-            textSize = 16f
+            textSize = 18f
             gravity = Gravity.CENTER
             setTextColor(iconColor)
+            typeface = iconTypeface
             layoutParams = LinearLayout.LayoutParams(dp(28), LinearLayout.LayoutParams.WRAP_CONTENT)
         })
         val trackH = dp(10)
