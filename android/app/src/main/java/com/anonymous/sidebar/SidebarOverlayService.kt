@@ -462,7 +462,7 @@ class SidebarOverlayService : Service() {
         val effectiveLight = if (prefs.panelColor.isNotEmpty()) {
             val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
         } else light
-        val tileBg     = if (effectiveLight) Color.argb(220, 231, 224, 236) else Color.argb(220, 55, 52, 62)
+        val tileBg     = if (effectiveLight) Color.argb(255, 115, 105, 130) else Color.argb(220, 55, 52, 62)
         val tileActive = if (effectiveLight) Color.argb(255, 103, 80, 164)  else Color.argb(255, 79, 55, 139)
         val indClr     = if (effectiveLight) Color.argb(60, 0, 0, 0)        else Color.argb(80, 255, 255, 255)
         val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
@@ -809,7 +809,7 @@ class SidebarOverlayService : Service() {
         val effectiveLight = if (p.panelColor.isNotEmpty()) {
             val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
         } else light
-        val tileBg     = if (effectiveLight) Color.argb(220, 231, 224, 236) else Color.argb(220, 55, 52, 62)
+        val tileBg     = if (effectiveLight) Color.argb(255, 115, 105, 130) else Color.argb(220, 55, 52, 62)
         val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
         val indClr     = if (effectiveLight) Color.argb(60, 0, 0, 0)        else Color.argb(80, 255, 255, 255)
 
@@ -1378,7 +1378,7 @@ class SidebarOverlayService : Service() {
         val effectiveLight = if (prefs.panelColor.isNotEmpty()) {
             val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
         } else light
-        val tileBg = if (effectiveLight) Color.argb(220, 231, 224, 236) else Color.argb(220, 55, 52, 62)
+        val tileBg = if (effectiveLight) Color.argb(255, 115, 105, 130) else Color.argb(220, 55, 52, 62)
         val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31) else Color.argb(230, 230, 225, 229)
 
         val loc = IntArray(2)
