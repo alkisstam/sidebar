@@ -709,8 +709,11 @@ class SidebarOverlayService : Service() {
             root.addView(handle)
         }
 
-        val panelGravity = if (effectiveSide == "left") Gravity.START or Gravity.CENTER_VERTICAL
-                           else Gravity.END or Gravity.CENTER_VERTICAL
+        val handleCenterY = (prefs.position * screenHeight).toInt()
+        val panelY = (handleCenterY - panelHeight / 2)
+            .coerceIn(0, screenHeight - panelHeight)
+        val panelGravity = if (effectiveSide == "left") Gravity.START or Gravity.TOP
+                           else Gravity.END or Gravity.TOP
         wm.addView(root, WindowManager.LayoutParams(
             dp(200), panelHeight,
             overlayType(),
@@ -718,7 +721,7 @@ class SidebarOverlayService : Service() {
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = panelGravity; x = dp(8) })
+        ).apply { gravity = panelGravity; x = dp(8); y = panelY })
 
         panelView = root
         handleView?.visibility = View.INVISIBLE
