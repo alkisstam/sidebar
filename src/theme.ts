@@ -183,10 +183,11 @@ export function makeStyles(colors: AppColors) {
     tabItem: { flex: 1, alignItems: "center" },
     navIndicator: {
       width: 72, height: 52, borderRadius: 26,
+      backgroundColor: 'transparent',
       alignItems: "center", justifyContent: "center",
       flexDirection: "column", gap: 2,
     },
-    navIndicatorActive: { backgroundColor: colors.primaryContainer },
+    navIndicatorActive: { backgroundColor: colors.primaryContainer, borderRadius: 26 },
     tabLabel: { fontSize: 11, color: colors.subtext, letterSpacing: 0.4 },
     tabLabelActive: { color: colors.onPrimaryContainer, fontWeight: "500" },
   });
