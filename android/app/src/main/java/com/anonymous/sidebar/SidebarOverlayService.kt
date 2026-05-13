@@ -735,14 +735,14 @@ class SidebarOverlayService : Service() {
         handleView?.visibility = View.INVISIBLE
         handleViewAlt?.visibility = View.INVISIBLE
 
-        val slideFrom = if (effectiveSide == "left") -dp(216).toFloat() else dp(216).toFloat()
+        val slideFrom = if (effectiveSide == "left") -dp(200).toFloat() else dp(200).toFloat()
         root.translationX = slideFrom
         root.alpha = 0f
-        root.scaleX = 0.94f
-        root.scaleY = 0.94f
+        root.scaleX = 0.92f
+        root.scaleY = 0.96f
         root.animate().withLayer()
             .translationX(0f).alpha(1f).scaleX(1f).scaleY(1f)
-            .setDuration(260).setInterpolator(OvershootInterpolator(1.1f))
+            .setDuration(220).setInterpolator(DecelerateInterpolator(2.5f))
             .start()
     }
 
@@ -790,10 +790,10 @@ class SidebarOverlayService : Service() {
         val handle = handleView
         val handleAlt = handleViewAlt
 
-        val slideTo = if (effectiveSide == "left") -dp(216).toFloat() else dp(216).toFloat()
+        val slideTo = if (effectiveSide == "left") -dp(200).toFloat() else dp(200).toFloat()
         panel.animate().withLayer()
-            .translationX(slideTo).alpha(0f).scaleX(0.94f).scaleY(0.94f)
-            .setDuration(180).setInterpolator(AccelerateInterpolator(1.5f))
+            .translationX(slideTo).alpha(0f)
+            .setDuration(160).setInterpolator(AccelerateInterpolator(2.2f))
             .withEndAction {
                 panel.alpha = 0f
                 runCatching { wm.removeViewImmediate(panel) }

@@ -77,15 +77,15 @@ export default function Index() {
     if (fromIdx === toIdx) return;
     const fwd = toIdx > fromIdx;
     Animated.timing(slideAnim, {
-      toValue: fwd ? -100 : 100, duration: 80,
-      easing: Easing.in(Easing.quad), useNativeDriver: true,
+      toValue: fwd ? -60 : 60, duration: 55,
+      easing: Easing.in(Easing.cubic), useNativeDriver: true,
     }).start(() => {
-      slideAnim.setValue(fwd ? 240 : -240);
+      slideAnim.setValue(fwd ? 180 : -180);
       activeTabRef.current = tab;
       setActiveTab(tab);
       Animated.timing(slideAnim, {
-        toValue: 0, duration: 160,
-        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+        toValue: 0, duration: 200,
+        easing: Easing.out(Easing.back(1.4)), useNativeDriver: true,
       }).start();
     });
   }, [slideAnim]);
