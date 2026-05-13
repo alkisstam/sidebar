@@ -2,7 +2,51 @@
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-05-13
+
+### Added
+
+**Behavior tab — pill gestures overhaul**
+- New "Pill gestures" master toggle enables or disables all handle gestures; when off, swipe-in always opens the panel regardless of other gesture settings
+- New "Swipe in" gesture slot (formerly the hardcoded panel-open swipe); configurable to the same five actions as the other slots: Off, Panel, Notifications, Quick Settings, All Apps — defaults to Panel
+- All four gesture rows (Swipe in, Swipe up, Swipe down, Double tap) now use an inline popup/accordion picker instead of the previous segmented button layout; tapping a row expands a rounded card listing the five options with a checkmark on the active one
+
+**Handle tab — Follow System theme**
+- New "System" option added to the Theme segmented control alongside Dark and Light
+- When System is selected, the app UI and overlay panel theme follow the device's current dark/light mode and update automatically when the system switches
+- The resolved theme choice (`light` / `dark` / `system`) is persisted in SharedPreferences (`theme_choice`) so the selection survives app restarts
+
+**Floating panel — position follows handle**
+- Panel now opens vertically centred on the handle's position rather than always at the centre of the screen
+- Position is clamped so the panel never extends beyond the top or bottom screen edge
+
+**Freeform launch — improved detection**
+- Added `ActivityManager.supportsMultiWindow(Context)` as a third detection path alongside `FEATURE_FREEFORM_WINDOW_MANAGEMENT` and the `enable_freeform_support` developer setting, so the Freeform option appears on devices that support it without requiring the developer option to be manually re-enabled
+
 ### Changed
+
+**Tab slide animation**
+- Exit phase shortened from 80 ms to 55 ms and easing changed from `Easing.in(Quad)` to `Easing.in(Cubic)` for a snappier departure
+- Enter phase now uses `Easing.out(Back(1.4))` (subtle overshoot) and enters from 180 px instead of 240 px, making content feel like it lands rather than stops
+
+**Floating panel open animation**
+- Duration reduced from 260 ms to 220 ms
+- Interpolator changed from `OvershootInterpolator(1.1f)` to `DecelerateInterpolator(2.5f)` for a weighted deceleration feel
+- Opening scale changed to asymmetric 0.92 × 0.96 (narrower horizontally, matching the slide direction)
+
+**Floating panel close animation**
+- Duration reduced from 180 ms to 160 ms
+- Interpolator tightened to `AccelerateInterpolator(2.2f)`
+- Scale animation removed on close; only translation + fade, producing a clean snap-away
+
+**Quick Controls — expandable accordion**
+- "Quick controls" row in the Control tab now acts as an expand/collapse header with a rotating chevron; individual control toggles are hidden inside the accordion body and revealed on tap
+
+**Navigation bar — active tab indicator**
+- Fixed rounded corners disappearing from the active tab pill after the first tab change on Android
+- Base style now includes `backgroundColor: transparent` and active style repeats `borderRadius: 26` to ensure Android's background drawable is always rounded regardless of style-diff order
+
+### Fixed
 
 - Updated color presets 4 and 6 (`#36043f` → `#084f36`, `#a9eede` → `#c2eea9`)
 
