@@ -2,14 +2,15 @@ import { Stack } from "expo-router";
 import { useState } from "react";
 import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { ThemeContext } from "../src/ThemeContext";
+import { ThemeChoice, ThemeContext } from "../src/ThemeContext";
 
 export default function RootLayout() {
   const systemScheme = useColorScheme();
-  const [appTheme, setAppTheme] = useState<'light' | 'dark'>(systemScheme ?? 'dark');
+  const [themeChoice, setThemeChoice] = useState<ThemeChoice>('system');
+  const appTheme = themeChoice === 'system' ? (systemScheme ?? 'dark') : themeChoice;
   const dark = appTheme === "dark";
   return (
-    <ThemeContext.Provider value={{ appTheme, setAppTheme }}>
+    <ThemeContext.Provider value={{ appTheme, themeChoice, setThemeChoice }}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <Stack
           screenOptions={{

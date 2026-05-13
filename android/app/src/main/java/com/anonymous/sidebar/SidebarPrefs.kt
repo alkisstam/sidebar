@@ -10,6 +10,7 @@ internal object Prefs {
     const val PILL_SIDE = "pill_side"
     const val PILL_OPACITY = "pill_opacity"
     const val PILL_THEME = "pill_theme"
+    const val THEME_CHOICE = "theme_choice"
     const val PANEL_COLOR = "panel_color"
     const val AUTO_HIDE_FULLSCREEN = "auto_hide_fullscreen"
     const val SHOW_LABELS = "show_labels"

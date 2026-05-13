@@ -22,6 +22,7 @@ export interface PillSettings {
   side: 'left' | 'right' | 'both';
   opacity: number;
   theme: 'light' | 'dark';
+  themeChoice: 'light' | 'dark' | 'system';
   panelColor: string;
 }
 

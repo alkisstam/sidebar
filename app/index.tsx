@@ -64,7 +64,7 @@ const DEFAULT_OVERLAY: OverlaySettings = {
 };
 
 export default function Index() {
-  const { appTheme, setAppTheme } = useAppTheme();
+  const { appTheme, themeChoice, setThemeChoice } = useAppTheme();
   const [activeTab, setActiveTab] = useState<Tab>("handle");
   const activeTabRef = useRef<Tab>("handle");
 
@@ -167,7 +167,7 @@ export default function Index() {
       setPermissionGranted(perm);
       setServiceEnabled(svc);
       setPill(pillSettings);
-      setAppTheme(pillSettings.theme);
+      setThemeChoice(pillSettings.themeChoice ?? pillSettings.theme);
       setOverlay(overlaySettings);
       setDndPerm(dnd);
       setWritePerm(write);
@@ -234,7 +234,7 @@ export default function Index() {
 
   async function saveHandle() {
     setSaving(true);
-    try { await Sidebar.savePillSettings(pill); }
+    try { await Sidebar.savePillSettings({ ...pill, themeChoice }); }
     catch { Alert.alert("Error", "Failed to save handle settings."); }
     finally { setSaving(false); }
   }
@@ -371,14 +371,18 @@ export default function Index() {
               <View style={s.settingRow}>
                 <Text style={s.settingLabel}>Theme</Text>
                 <View style={s.segmented}>
-                  {(["dark", "light"] as const).map(t => (
+                  {(["dark", "light", "system"] as const).map(t => (
                     <Pressable
                       key={t}
-                      style={[s.segBtn, pill.theme === t && s.segBtnActive]}
-                      onPress={() => { setPill(p => ({ ...p, theme: t })); setAppTheme(t); }}
+                      style={[s.segBtn, themeChoice === t && s.segBtnActive]}
+                      onPress={() => {
+                        setThemeChoice(t);
+                        const resolved = t === 'system' ? appTheme : t;
+                        setPill(p => ({ ...p, theme: resolved }));
+                      }}
                     >
-                      <Text style={[s.segBtnText, pill.theme === t && s.segBtnTextActive]}>
-                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      <Text style={[s.segBtnText, themeChoice === t && s.segBtnTextActive]}>
+                        {t === 'system' ? 'System' : t.charAt(0).toUpperCase() + t.slice(1)}
                       </Text>
                     </Pressable>
                   ))}
