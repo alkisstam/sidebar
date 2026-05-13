@@ -57,6 +57,7 @@ const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,
   quickControlsEnabled: true, showTorch: true, showAutoRotate: true, showAutoBrightness: true, showRingerMode: true,
   showAllApps: true, showEdit: true,
+  gesturesEnabled: true, gestureSwipeIn: 'panel',
   gestureSwipeUp: 'none', gestureSwipeDown: 'notifications', gestureDoubleTap: 'none',
   showBrightnessSlider: true, showVolumeSlider: true, showQuickShare: true,
   showPower: true, showQr: true, showDnd: true,
@@ -116,6 +117,7 @@ export default function Index() {
   const [hexInput, setHexInput] = useState("");
   const [showHexInput, setShowHexInput] = useState(false);
   const [savingOverlay, setSavingOverlay] = useState(false);
+  const [gestureMenuOpen, setGestureMenuOpen] = useState<string | null>(null);
   const [quickControlsExpanded, setQuickControlsExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
 
@@ -537,35 +539,67 @@ export default function Index() {
                 onChange={v => setOverlay(p => ({ ...p, sensitivity: Math.round(v) }))}
                 colors={colors} s={s} />
               <View style={s.separator} />
-              <Text style={[s.rowLabel, { marginBottom: 10 }]}>Pill gestures</Text>
-              {(['gestureSwipeUp', 'gestureSwipeDown', 'gestureDoubleTap'] as const).map((key, i) => {
-                const labels = ['Swipe up', 'Swipe down', 'Double tap'];
-                const actions = [
-                  { value: 'none', label: 'Off' },
-                  { value: 'panel', label: 'Panel' },
-                  { value: 'notifications', label: 'Notifs' },
-                  { value: 'quick_settings', label: 'QS' },
-                  { value: 'all_apps', label: 'Apps' },
-                ] as const;
-                return (
-                  <View key={key} style={{ marginBottom: i < 2 ? 10 : 0 }}>
-                    <Text style={[s.rowSub, { marginBottom: 6 }]}>{labels[i]}</Text>
-                    <View style={s.segmented}>
-                      {actions.map(a => (
-                        <Pressable
-                          key={a.value}
-                          style={[s.segBtnSm, overlay[key] === a.value && s.segBtnActive]}
-                          onPress={() => setOverlay(p => ({ ...p, [key]: a.value }))}
-                        >
-                          <Text style={[s.segBtnSmText, overlay[key] === a.value && s.segBtnTextActive]}>
-                            {a.label}
-                          </Text>
-                        </Pressable>
-                      ))}
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1 }]}>Pill gestures</Text>
+                <Switch
+                  value={overlay.gesturesEnabled}
+                  onValueChange={v => setOverlay(p => ({ ...p, gesturesEnabled: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              {overlay.gesturesEnabled && (
+                ([
+                  { key: 'gestureSwipeIn',   label: 'Swipe in'   },
+                  { key: 'gestureSwipeUp',   label: 'Swipe up'   },
+                  { key: 'gestureSwipeDown', label: 'Swipe down' },
+                  { key: 'gestureDoubleTap', label: 'Double tap' },
+                ] as const).map(({ key, label }, i, arr) => {
+                  const ACTIONS = [
+                    { value: 'none',          label: 'Off'           },
+                    { value: 'panel',         label: 'Panel'         },
+                    { value: 'notifications', label: 'Notifications' },
+                    { value: 'quick_settings',label: 'Quick Settings'},
+                    { value: 'all_apps',      label: 'All Apps'      },
+                  ] as const;
+                  const current = ACTIONS.find(a => a.value === overlay[key])?.label ?? 'Off';
+                  const isOpen = gestureMenuOpen === key;
+                  return (
+                    <View key={key}>
+                      <View style={s.separator} />
+                      <Pressable style={s.row} onPress={() => setGestureMenuOpen(isOpen ? null : key)}>
+                        <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>{label}</Text>
+                        <Text style={[s.rowSub, { marginRight: 6 }]}>{current}</Text>
+                        <Ionicons
+                          name={isOpen ? 'chevron-up' : 'chevron-down'}
+                          size={16} color={colors.subtext}
+                        />
+                      </Pressable>
+                      {isOpen && (
+                        <View style={{
+                          marginHorizontal: 16, marginBottom: 8,
+                          backgroundColor: colors.surfaceContainerHigh,
+                          borderRadius: 12, overflow: 'hidden',
+                        }}>
+                          {ACTIONS.map((a, ai) => (
+                            <View key={a.value}>
+                              {ai > 0 && <View style={[s.separator, { marginLeft: 0 }]} />}
+                              <Pressable
+                                style={[s.row, overlay[key] === a.value && { backgroundColor: colors.secondaryContainer }]}
+                                onPress={() => { setOverlay(p => ({ ...p, [key]: a.value })); setGestureMenuOpen(null); }}
+                              >
+                                <Text style={[s.rowLabel, { flex: 1 }]}>{a.label}</Text>
+                                {overlay[key] === a.value && (
+                                  <Ionicons name="checkmark" size={18} color={colors.primary} />
+                                )}
+                              </Pressable>
+                            </View>
+                          ))}
+                        </View>
+                      )}
                     </View>
-                  </View>
-                );
-              })}
+                  );
+                })
+              )}
               <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
                 <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save Behavior Settings"}</Text>
               </Pressable>

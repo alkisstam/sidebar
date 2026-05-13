@@ -23,6 +23,8 @@ internal object Prefs {
     const val LAUNCH_TAB = "launch_tab"
     const val SHOW_ALL_APPS = "show_all_apps"
     const val SHOW_EDIT = "show_edit"
+    const val GESTURES_ENABLED = "gestures_enabled"
+    const val GESTURE_SWIPE_IN = "gesture_swipe_in"
     const val GESTURE_SWIPE_UP = "gesture_swipe_up"
     const val GESTURE_SWIPE_DOWN = "gesture_swipe_down"
     const val GESTURE_DOUBLE_TAP = "gesture_double_tap"

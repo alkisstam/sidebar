@@ -208,6 +208,8 @@ class SidebarOverlayService : Service() {
         val showRingerMode: Boolean,
         val showAllApps: Boolean,
         val showEdit: Boolean,
+        val gesturesEnabled: Boolean,
+        val gestureSwipeIn: String,
         val gestureSwipeUp: String,
         val gestureSwipeDown: String,
         val gestureDoubleTap: String,
@@ -264,6 +266,8 @@ class SidebarOverlayService : Service() {
             p.getBoolean(Prefs.SHOW_RINGER_MODE, true),
             p.getBoolean(Prefs.SHOW_ALL_APPS, true),
             p.getBoolean(Prefs.SHOW_EDIT, true),
+            p.getBoolean(Prefs.GESTURES_ENABLED, true),
+            p.getString(Prefs.GESTURE_SWIPE_IN, "panel") ?: "panel",
             p.getString(Prefs.GESTURE_SWIPE_UP, "none") ?: "none",
             p.getString(Prefs.GESTURE_SWIPE_DOWN, "notifications") ?: "notifications",
             p.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none",
@@ -353,13 +357,17 @@ class SidebarOverlayService : Service() {
                     val threshold = dp(sensitivityDp)
                     val oPrefs = overlayPrefs()
                     when {
-                        adx >= threshold && adx > ady -> { lastActiveSide = triggerSide; toggle() }
-                        ady >= threshold && ady > adx && dy < 0 -> executeGestureAction(oPrefs.gestureSwipeUp)
-                        ady >= threshold && ady > adx && dy > 0 -> executeGestureAction(oPrefs.gestureSwipeDown)
+                        adx >= threshold && adx > ady -> {
+                            lastActiveSide = triggerSide
+                            if (oPrefs.gesturesEnabled) executeGestureAction(oPrefs.gestureSwipeIn)
+                            else toggle()
+                        }
+                        oPrefs.gesturesEnabled && ady >= threshold && ady > adx && dy < 0 -> executeGestureAction(oPrefs.gestureSwipeUp)
+                        oPrefs.gesturesEnabled && ady >= threshold && ady > adx && dy > 0 -> executeGestureAction(oPrefs.gestureSwipeDown)
                         adx < dp(8) && ady < dp(8) -> {
                             val now = System.currentTimeMillis()
                             if (now - lastTapTime < 300L) {
-                                executeGestureAction(oPrefs.gestureDoubleTap)
+                                if (oPrefs.gesturesEnabled) executeGestureAction(oPrefs.gestureDoubleTap)
                                 lastTapTime = 0L
                             } else {
                                 lastTapTime = now
