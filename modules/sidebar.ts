@@ -2,6 +2,13 @@ import { NativeModules } from 'react-native';
 
 const { SidebarModule } = NativeModules;
 
+if (!SidebarModule) {
+  throw new Error(
+    'SidebarModule native module is not available. ' +
+    'Make sure you are running on Android and the native build is up to date (run `expo run:android`).'
+  );
+}
+
 export interface InstalledApp {
   name: string;
   packageName: string;
