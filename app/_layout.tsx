@@ -2,7 +2,7 @@ import { Stack } from "expo-router";
 import { useState } from "react";
 import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { ThemeContext } from "./ThemeContext";
+import { ThemeContext } from "../src/ThemeContext";
 
 export default function RootLayout() {
   const systemScheme = useColorScheme();

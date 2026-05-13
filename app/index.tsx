@@ -25,9 +25,9 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 import ColorPicker, { HueCircular, Panel1 } from "reanimated-color-picker";
 import Sidebar, { InstalledApp, OverlaySettings, PillSettings } from "../modules/sidebar";
-import { SliderRow } from "./components/SliderRow";
-import { makeColors, makeStyles } from "./theme";
-import { useAppTheme } from "./ThemeContext";
+import { SliderRow } from "../src/components/SliderRow";
+import { makeColors, makeStyles } from "../src/theme";
+import { useAppTheme } from "../src/ThemeContext";
 
 type Tab = "handle" | "behavior" | "control" | "apps";
 type FavItem = { key: string; name: string; icon: string | null };
