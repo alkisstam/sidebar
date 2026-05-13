@@ -116,6 +116,20 @@ export default function Index() {
   const [hexInput, setHexInput] = useState("");
   const [showHexInput, setShowHexInput] = useState(false);
   const [savingOverlay, setSavingOverlay] = useState(false);
+  const [quickControlsExpanded, setQuickControlsExpanded] = useState(false);
+  const expandAnim = useRef(new Animated.Value(0)).current;
+
+  const toggleQuickControls = useCallback(() => {
+    setQuickControlsExpanded(prev => {
+      Animated.timing(expandAnim, {
+        toValue: prev ? 0 : 1,
+        duration: 200,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }).start();
+      return !prev;
+    });
+  }, [expandAnim]);
 
   const applyHex = useCallback(() => {
     const hex = hexInput.startsWith("#") ? hexInput : "#" + hexInput;
@@ -563,15 +577,25 @@ export default function Index() {
         <View style={{ display: activeTab === "control" ? "flex" : "none", flex: 1 }}>
           <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
             <View style={s.section}>
-              <View style={s.row}>
+              {/* Quick controls header — enable toggle + expand/collapse */}
+              <Pressable style={s.row} onPress={toggleQuickControls}>
                 <Text style={[s.rowLabel, { flex: 1 }]}>Quick controls</Text>
-                <Switch
-                  value={overlay.quickControlsEnabled}
-                  onValueChange={v => setOverlay(p => ({ ...p, quickControlsEnabled: v }))}
-                  trackColor={{ true: colors.tint }}
-                />
-              </View>
-              {overlay.quickControlsEnabled && <>
+                <View onStartShouldSetResponder={() => true}>
+                  <Switch
+                    value={overlay.quickControlsEnabled}
+                    onValueChange={v => setOverlay(p => ({ ...p, quickControlsEnabled: v }))}
+                    trackColor={{ true: colors.tint }}
+                  />
+                </View>
+                <Animated.View style={{
+                  marginLeft: 8,
+                  transform: [{ rotate: expandAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }],
+                }}>
+                  <Ionicons name="chevron-down" size={18} color={colors.subtext} />
+                </Animated.View>
+              </Pressable>
+              {/* Animated accordion body */}
+              <Animated.View style={{ overflow: 'hidden', maxHeight: expandAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 2000] }) }}>
                 <View style={s.separator} />
                 <View style={s.row}>
                   <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Torch</Text>
@@ -680,7 +704,7 @@ export default function Index() {
                     trackColor={{ true: colors.tint }}
                   />
                 </View>
-              </>}
+              </Animated.View>
             </View>
             <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
               <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save"}</Text>
