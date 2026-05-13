@@ -3,25 +3,25 @@ import { Image } from "expo-image";
 import { Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    AppState,
-    AppStateStatus,
-    Easing,
-    FlatList,
-    Linking,
-    PanResponder,
-    Pressable,
-    ScrollView,
-    Switch,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  AppState,
+  AppStateStatus,
+  Easing,
+  FlatList,
+  Linking,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import DraggableFlatList, {
-    RenderItemParams,
-    ScaleDecorator,
+  RenderItemParams,
+  ScaleDecorator,
 } from "react-native-draggable-flatlist";
 import ColorPicker, { HueCircular, Panel1 } from "reanimated-color-picker";
 import Sidebar, { InstalledApp, OverlaySettings, PillSettings } from "../modules/sidebar";
@@ -45,13 +45,13 @@ const DEFAULT_PILL: PillSettings = {
 
 const PANEL_COLORS: { key: string }[] = [
   { key: "" },
-  { key: "#073276ff" },
-  { key: "#3c0c94ff" },
-  { key: "#65055cff" },
-  { key: "#084f36ff" },
-  { key: "#9abae9ff" },
-  { key: "#c2eea9ff" },
-  { key: "#ede1a6ff" },
+  { key: "#073276" },
+  { key: "#3C0C94" },
+  { key: "#65055C" },
+  { key: "#084F36" },
+  { key: "#9ABAE9" },
+  { key: "#C2EEA9" },
+  { key: "#EDE1A6" },
 ];
 const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,
