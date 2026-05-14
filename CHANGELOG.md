@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.9.1] - 2026-05-14
+
+### Fixed
+
+- `saveHandle` now resolves `pill.theme` from the live system scheme at save time when `themeChoice` is `system`, preventing a stale theme being written to `PILL_THEME` if the system switched dark/light after the button was last pressed
+- `DEFAULT_PILL` was missing the required `themeChoice` field (TypeScript type error)
+- `ThemeContext` default value for `themeChoice` corrected from `'dark'` to `'system'` to match the provider's initial state
+- Removed `ActivityManager.supportsMultiWindow(Context)` from the freeform detection gate — it returns `true` on any split-screen-capable device, causing the Freeform menu item to appear and immediately fail on devices that don't support freeform windows
+
 ## [1.9.0] - 2026-05-13
 
 ### Added
