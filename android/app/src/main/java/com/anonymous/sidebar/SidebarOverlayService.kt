@@ -1440,12 +1440,8 @@ class SidebarOverlayService : Service() {
             setOnClickListener { hideContextMenu(); action() }
         }
         menu.addView(item("Open") { doLaunch(pkg) })
-        val amSupportsMultiWindow = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            try { android.app.ActivityManager::class.java.getMethod("supportsMultiWindow", android.content.Context::class.java).invoke(null, this) == true } catch (_: Exception) { false }
-        } else false
         val freeformEnabled = packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
-            Settings.Global.getInt(contentResolver, "enable_freeform_support", 0) == 1 ||
-            amSupportsMultiWindow
+            Settings.Global.getInt(contentResolver, "enable_freeform_support", 0) == 1
         if (freeformEnabled) {
             menu.addView(item("Freeform") { hidePanel(); doLaunchFreeform(pkg) })
         }

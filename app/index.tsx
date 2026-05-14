@@ -40,7 +40,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ];
 
 const DEFAULT_PILL: PillSettings = {
-  height: 80, width: 10, position: 0.5, side: "right", opacity: 0.5, theme: "dark", panelColor: "",
+  height: 80, width: 10, position: 0.5, side: "right", opacity: 0.5, theme: "dark", themeChoice: "system", panelColor: "",
 };
 
 const PANEL_COLORS: { key: string }[] = [
@@ -234,7 +234,8 @@ export default function Index() {
 
   async function saveHandle() {
     setSaving(true);
-    try { await Sidebar.savePillSettings({ ...pill, themeChoice }); }
+    const resolvedTheme = themeChoice === 'system' ? appTheme : pill.theme;
+    try { await Sidebar.savePillSettings({ ...pill, theme: resolvedTheme, themeChoice }); }
     catch { Alert.alert("Error", "Failed to save handle settings."); }
     finally { setSaving(false); }
   }

@@ -11,7 +11,7 @@ interface ThemeContextValue {
 
 export const ThemeContext = createContext<ThemeContextValue>({
   appTheme: 'dark',
-  themeChoice: 'dark',
+  themeChoice: 'system',
   setThemeChoice: () => {},
 });
 
