@@ -3,6 +3,7 @@ package com.anonymous.sidebar
 import android.animation.*
 import android.app.*
 import android.content.*
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.content.pm.ServiceInfo
@@ -223,14 +224,30 @@ class SidebarOverlayService : Service() {
 
     private fun pillPrefs(): PillPrefs {
         val p = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
+        val themeChoice = p.getString(Prefs.THEME_CHOICE, "dark") ?: "dark"
+        val theme = if (themeChoice == "system") {
+            val nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+            if (nightMode == Configuration.UI_MODE_NIGHT_YES) "dark" else "light"
+        } else {
+            p.getString(Prefs.PILL_THEME, "dark") ?: "dark"
+        }
         return PillPrefs(
             p.getInt(Prefs.PILL_HEIGHT, 80), p.getInt(Prefs.PILL_WIDTH, 36),
             p.getFloat(Prefs.PILL_POSITION, 0.5f),
             p.getString(Prefs.PILL_SIDE, "right") ?: "right",
             p.getFloat(Prefs.PILL_OPACITY, 1.0f),
-            p.getString(Prefs.PILL_THEME, "dark") ?: "dark",
+            theme,
             p.getString(Prefs.PANEL_COLOR, "") ?: ""
         )
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val themeChoice = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
+            .getString(Prefs.THEME_CHOICE, "dark") ?: "dark"
+        if (themeChoice == "system") {
+            Handler(Looper.getMainLooper()).post { refreshHandle() }
+        }
     }
 
     private fun resolvePanelBg(rawColor: String, alpha: Int, light: Boolean): Int {

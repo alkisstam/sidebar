@@ -379,7 +379,7 @@ export default function Index() {
                       onPress={() => {
                         setThemeChoice(t);
                         const resolved = t === 'system' ? appTheme : t;
-                        setPill(p => ({ ...p, theme: resolved }));
+                        setPill(p => ({ ...p, theme: resolved, themeChoice: t }));
                       }}
                     >
                       <Text style={[s.segBtnText, themeChoice === t && s.segBtnTextActive]}>

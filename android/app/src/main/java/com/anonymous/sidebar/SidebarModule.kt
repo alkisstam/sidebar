@@ -162,7 +162,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putString("side", prefs.getString(Prefs.PILL_SIDE, "right") ?: "right")
         map.putDouble("opacity", prefs.getFloat(Prefs.PILL_OPACITY, 1.0f).toDouble())
         map.putString("theme", prefs.getString(Prefs.PILL_THEME, "dark") ?: "dark")
-        map.putString("themeChoice", prefs.getString(Prefs.THEME_CHOICE, "system") ?: "system")
+        val savedThemeChoice = prefs.getString(Prefs.THEME_CHOICE, null)
+            ?: prefs.getString(Prefs.PILL_THEME, "dark") ?: "dark"
+        map.putString("themeChoice", savedThemeChoice)
         map.putString("panelColor", prefs.getString(Prefs.PANEL_COLOR, "") ?: "")
         promise.resolve(map)
     }
