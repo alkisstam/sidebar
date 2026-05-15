@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.2] - 2026-05-15
+
+### Fixed
+
+- `getPillSettings` now falls back to the stored `PILL_THEME` value when `THEME_CHOICE` has never been written (existing installs), so upgrading users with an explicit dark or light theme are not silently reset to System
+- Theme button press now keeps `pill.themeChoice` in state in sync with the context `themeChoice`; previously `pill.themeChoice` stayed at the loaded value regardless of user interaction
+- Sidebar handle and panel now update immediately when the OS dark/light mode changes while System theme is active — `SidebarOverlayService` resolves the theme from `resources.configuration` at runtime rather than reading the stale `PILL_THEME` pref, and `onConfigurationChanged` triggers a handle rebuild on every system theme switch
+
 ## [1.9.1] - 2026-05-14
 
 ### Fixed
