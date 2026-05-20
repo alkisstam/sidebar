@@ -1216,7 +1216,7 @@ class SidebarOverlayService : Service() {
         )
         for (intent in candidates) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            try { startActivity(intent); Log.d(TAG, "QuickShare launched: $intent"); return }
+            try { startActivity(intent); return }
             catch (e: Exception) { Log.w(TAG, "QuickShare intent failed: $intent — ${e.message}") }
         }
     }
