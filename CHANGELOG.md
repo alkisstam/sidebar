@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.0] - 2026-05-20
+
+### Changed
+
+- Package renamed from `com.anonymous.sidebar` to `com.alkisstam.sidebar`
+- Material You applied throughout — settings screen, sidebar panel, and quick controls now use the Material3 theme with dynamic wallpaper colours on Android 12+
+- Sidebar panel width reduced to 168dp for a more compact layout; app icon grid padding tightened
+- Quick controls rearranged to a maximum of 2 tiles per row (Torch/Rotate, Brightness/Ringer, Share/Power, QR/DND)
+- Handle tab colour presets replaced: 4 dark presets (navy, purple, teal, warm brown) and 4 light presets (lavender, sky blue, mint, peach) in place of the previous 7 mixed swatches
+
+### Removed
+
+- Freeform window launch option removed from the app long-press context menu
+
 ## [1.9.2] - 2026-05-15
 
 ### Fixed
