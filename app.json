@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.sidebar"
+      "package": "com.alkisstam.sidebar"
     },
     "web": {
       "output": "static",

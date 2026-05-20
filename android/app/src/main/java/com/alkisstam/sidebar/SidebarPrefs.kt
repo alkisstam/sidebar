@@ -1,4 +1,4 @@
-package com.anonymous.sidebar
+package com.alkisstam.sidebar
 
 internal object Prefs {
     const val FILE = "sidebar_prefs"

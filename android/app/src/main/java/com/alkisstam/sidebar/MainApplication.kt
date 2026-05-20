@@ -1,10 +1,8 @@
-package com.anonymous.sidebar
+package com.alkisstam.sidebar
 
 import android.app.Application
 import android.content.res.Configuration
 import android.os.Build
-import org.lsposed.hiddenapibypass.HiddenApiBypass
-
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
@@ -41,9 +39,6 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-      HiddenApiBypass.addHiddenApiExemptions("")
-    }
     DefaultNewArchitectureEntryPoint.releaseLevel = try {
       ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
     } catch (e: IllegalArgumentException) {

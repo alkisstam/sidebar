@@ -1,4 +1,4 @@
-package com.anonymous.sidebar
+package com.alkisstam.sidebar
 
 import android.animation.*
 import android.app.*
@@ -461,8 +461,9 @@ class SidebarOverlayService : Service() {
         val rowH = if (oPrefs.showLabels) dp(82) else dp(68)
         val numCtrlRows = (if (hasQC) listOf(
             oPrefs.showTorch || oPrefs.showAutoRotate,
-            oPrefs.showAutoBrightness || oPrefs.showRingerMode || oPrefs.showQuickShare,
-            oPrefs.showPower || oPrefs.showQr || oPrefs.showDnd,
+            oPrefs.showAutoBrightness || oPrefs.showRingerMode,
+            oPrefs.showQuickShare || oPrefs.showPower,
+            oPrefs.showQr || oPrefs.showDnd,
             oPrefs.showBrightnessSlider,
             oPrefs.showVolumeSlider
         ).count { it } else 0) + (if (hasActions) 1 else 0)
@@ -575,8 +576,6 @@ class SidebarOverlayService : Service() {
                 { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }, stripGd) { toggleAutoBrightness() })
             if (oPrefs.showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
                 { isRingerActive() }, { getRingerSubtitle() }, stripGd) { toggleRingerMode() })
-            if (oPrefs.showQuickShare) ctrlRow2.addView(makeControlTile("Share", { "\uE80D" }, tileBg, tileActive,
-                { false }, { "" }, stripGd) { launchQuickShare() })
             if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
 
             val ctrlRow3 = LinearLayout(this).apply {
@@ -585,13 +584,23 @@ class SidebarOverlayService : Service() {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(6) }
             }
+            if (oPrefs.showQuickShare) ctrlRow3.addView(makeControlTile("Share", { "\uE80D" }, tileBg, tileActive,
+                { false }, { "" }, stripGd) { launchQuickShare() })
             if (oPrefs.showPower) ctrlRow3.addView(makeControlTile("Power", { "\uE8AC" }, tileBg, tileActive,
                 { false }, { "" }, stripGd) { openPowerMenu() })
-            if (oPrefs.showQr) ctrlRow3.addView(makeControlTile("QR Scan", { "\uF206" }, tileBg, tileActive,
-                { false }, { "" }, stripGd) { launchQrScanner() })
-            if (oPrefs.showDnd) ctrlRow3.addView(makeControlTile("DND", { if (isDndEnabled()) "\uE644" else "\uE7F4" }, tileBg, tileActive,
-                { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }, stripGd) { toggleDnd() })
             if (ctrlRow3.childCount > 0) controlsStrip.addView(ctrlRow3)
+
+            val ctrlRow4 = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(6) }
+            }
+            if (oPrefs.showQr) ctrlRow4.addView(makeControlTile("QR Scan", { "\uF206" }, tileBg, tileActive,
+                { false }, { "" }, stripGd) { launchQrScanner() })
+            if (oPrefs.showDnd) ctrlRow4.addView(makeControlTile("DND", { if (isDndEnabled()) "\uE644" else "\uE7F4" }, tileBg, tileActive,
+                { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }, stripGd) { toggleDnd() })
+            if (ctrlRow4.childCount > 0) controlsStrip.addView(ctrlRow4)
         }
         if (hasActions) {
             val actionsRow = LinearLayout(this).apply {
@@ -617,7 +626,7 @@ class SidebarOverlayService : Service() {
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(4), dp(8), dp(16))
+            setPadding(dp(4), dp(4), dp(4), dp(16))
         }
 
         if (pkgs.isEmpty()) {
@@ -740,7 +749,7 @@ class SidebarOverlayService : Service() {
         val panelGravity = if (effectiveSide == "left") Gravity.START or Gravity.TOP
                            else Gravity.END or Gravity.TOP
         wm.addView(root, WindowManager.LayoutParams(
-            dp(200), panelHeight,
+            dp(168), panelHeight,
             overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -752,7 +761,7 @@ class SidebarOverlayService : Service() {
         handleView?.visibility = View.INVISIBLE
         handleViewAlt?.visibility = View.INVISIBLE
 
-        val slideFrom = if (effectiveSide == "left") -dp(200).toFloat() else dp(200).toFloat()
+        val slideFrom = if (effectiveSide == "left") -dp(168).toFloat() else dp(168).toFloat()
         root.translationX = slideFrom
         root.alpha = 0f
         root.scaleX = 0.92f
@@ -807,7 +816,7 @@ class SidebarOverlayService : Service() {
         val handle = handleView
         val handleAlt = handleViewAlt
 
-        val slideTo = if (effectiveSide == "left") -dp(200).toFloat() else dp(200).toFloat()
+        val slideTo = if (effectiveSide == "left") -dp(168).toFloat() else dp(168).toFloat()
         panel.animate().withLayer()
             .translationX(slideTo).alpha(0f)
             .setDuration(160).setInterpolator(AccelerateInterpolator(2.2f))
@@ -1340,7 +1349,7 @@ class SidebarOverlayService : Service() {
         val cell = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(6), dp(10), dp(6), dp(10))
+            setPadding(dp(4), dp(10), dp(4), dp(10))
             isClickable = true
             isFocusable = true
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -1457,11 +1466,6 @@ class SidebarOverlayService : Service() {
             setOnClickListener { hideContextMenu(); action() }
         }
         menu.addView(item("Open") { doLaunch(pkg) })
-        val freeformEnabled = packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
-            Settings.Global.getInt(contentResolver, "enable_freeform_support", 0) == 1
-        if (freeformEnabled) {
-            menu.addView(item("Freeform") { hidePanel(); doLaunchFreeform(pkg) })
-        }
 
         val container = FrameLayout(this).apply {
             setOnClickListener { hideContextMenu() }
@@ -1482,45 +1486,6 @@ class SidebarOverlayService : Service() {
     private fun hideContextMenu() {
         contextMenuView?.let { runCatching { wm.removeView(it) } }
         contextMenuView = null
-    }
-
-    private fun doLaunchFreeform(pkg: String) {
-        vibrate()
-        val intent = packageManager.getLaunchIntentForPackage(pkg) ?: run {
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(this, "Can't open this app", Toast.LENGTH_SHORT).show()
-            }
-            return
-        }
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-        val opts = ActivityOptions.makeBasic()
-        try {
-            ActivityOptions::class.java
-                .getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
-                .invoke(opts, 5) // WINDOWING_MODE_FREEFORM = 5
-        } catch (_: Exception) {}
-        val (sw, sh) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val b = wm.currentWindowMetrics.bounds
-            b.width() to b.height()
-        } else {
-            val dm = DisplayMetrics()
-            @Suppress("DEPRECATION")
-            wm.defaultDisplay.getRealMetrics(dm)
-            dm.widthPixels to dm.heightPixels
-        }
-        val w = (sw * 0.75f).toInt()
-        val h = (sh * 0.65f).toInt()
-        val left = (sw - w) / 2
-        val top = (sh - h) / 4
-        opts.launchBounds = Rect(left, top, left + w, top + h)
-        try {
-            startActivity(intent, opts.toBundle())
-        } catch (e: Exception) {
-            Log.e(TAG, "Freeform launch failed for $pkg", e)
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(this, "Freeform not supported", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     private fun prefetchAppData() {

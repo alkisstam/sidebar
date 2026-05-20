@@ -1,4 +1,4 @@
-package com.anonymous.sidebar
+package com.alkisstam.sidebar
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

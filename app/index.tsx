@@ -45,13 +45,14 @@ const DEFAULT_PILL: PillSettings = {
 
 const PANEL_COLORS: { key: string }[] = [
   { key: "" },
-  { key: "#073276" },
-  { key: "#3C0C94" },
-  { key: "#65055C" },
-  { key: "#084F36" },
-  { key: "#9ABAE9" },
-  { key: "#C2EEA9" },
-  { key: "#EDE1A6" },
+  { key: "#1B1B2F" },
+  { key: "#2D1B4E" },
+  { key: "#1A2F2B" },
+  { key: "#2F1F1A" },
+  { key: "#E8DEF8" },
+  { key: "#CDE7F5" },
+  { key: "#CCE8DC" },
+  { key: "#F5E6CC" },
 ];
 const DEFAULT_OVERLAY: OverlaySettings = {
   autoHideFullscreen: false, showLabels: true, vibration: true, sensitivity: 16,

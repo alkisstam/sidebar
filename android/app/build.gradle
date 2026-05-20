@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.sidebar'
+    namespace 'com.alkisstam.sidebar'
     defaultConfig {
-        applicationId 'com.anonymous.sidebar'
+        applicationId 'com.alkisstam.sidebar'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 10
@@ -158,7 +158,7 @@ android {
 }
 
 dependencies {
-    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:4.3")
+    implementation("com.google.android.material:material:1.12.0")
 
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")

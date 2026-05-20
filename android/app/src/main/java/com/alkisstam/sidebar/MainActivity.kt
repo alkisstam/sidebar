@@ -1,9 +1,10 @@
-package com.anonymous.sidebar
+package com.alkisstam.sidebar
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
 import android.os.Bundle
 
+import com.google.android.material.color.DynamicColors
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -13,6 +14,7 @@ import expo.modules.ReactActivityDelegateWrapper
 
 class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
+    DynamicColors.applyToActivityIfAvailable(this)
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.

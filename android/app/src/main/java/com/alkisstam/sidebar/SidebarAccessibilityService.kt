@@ -1,4 +1,4 @@
-package com.anonymous.sidebar
+package com.alkisstam.sidebar
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
