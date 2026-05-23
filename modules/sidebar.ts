@@ -44,8 +44,8 @@ export interface OverlaySettings {
   gestureSwipeDown: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
   gestureDoubleTap: 'none' | 'panel' | 'notifications' | 'quick_settings' | 'all_apps';
   showBrightnessSlider: boolean;
-  showVolumeSlider: boolean;
   showQuickShare: boolean;
+  showRecentApps: boolean;
   showPower: boolean;
   showQr: boolean;
   showDnd: boolean;

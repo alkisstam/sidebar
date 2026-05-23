@@ -60,8 +60,9 @@ const DEFAULT_OVERLAY: OverlaySettings = {
   showAllApps: true, showEdit: true,
   gesturesEnabled: true, gestureSwipeIn: 'panel',
   gestureSwipeUp: 'none', gestureSwipeDown: 'notifications', gestureDoubleTap: 'none',
-  showBrightnessSlider: true, showVolumeSlider: true, showQuickShare: true,
+  showBrightnessSlider: true, showQuickShare: true,
   showPower: true, showQr: true, showDnd: true,
+  showRecentApps: false,
 };
 
 export default function Index() {
@@ -114,10 +115,10 @@ export default function Index() {
 
   const [pill, setPill] = useState<PillSettings>(DEFAULT_PILL);
   const [overlay, setOverlay] = useState<OverlaySettings>(DEFAULT_OVERLAY);
-  const [saving, setSaving] = useState(false);
+  const pillInitRef = useRef(false);
+  const overlayInitRef = useRef(false);
   const [hexInput, setHexInput] = useState("");
   const [showHexInput, setShowHexInput] = useState(false);
-  const [savingOverlay, setSavingOverlay] = useState(false);
   const [gestureMenuOpen, setGestureMenuOpen] = useState<string | null>(null);
   const [quickControlsExpanded, setQuickControlsExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
@@ -233,20 +234,18 @@ export default function Index() {
     }
   }
 
-  async function saveHandle() {
-    setSaving(true);
+  useEffect(() => {
+    if (!pillInitRef.current) { pillInitRef.current = true; return; }
     const resolvedTheme = themeChoice === 'system' ? appTheme : pill.theme;
-    try { await Sidebar.savePillSettings({ ...pill, theme: resolvedTheme, themeChoice }); }
-    catch { Alert.alert("Error", "Failed to save handle settings."); }
-    finally { setSaving(false); }
-  }
+    const t = setTimeout(() => Sidebar.savePillSettings({ ...pill, theme: resolvedTheme, themeChoice }), 600);
+    return () => clearTimeout(t);
+  }, [pill, themeChoice, appTheme]);
 
-  async function saveOverlay() {
-    setSavingOverlay(true);
-    try { await Sidebar.saveOverlaySettings(overlay); }
-    catch { Alert.alert("Error", "Failed to save behavior settings."); }
-    finally { setSavingOverlay(false); }
-  }
+  useEffect(() => {
+    if (!overlayInitRef.current) { overlayInitRef.current = true; return; }
+    const t = setTimeout(() => Sidebar.saveOverlaySettings(overlay), 600);
+    return () => clearTimeout(t);
+  }, [overlay]);
 
   const toggleFav = useCallback((app: InstalledApp) => {
     setListData(prev =>
@@ -498,9 +497,6 @@ export default function Index() {
                 value={pill.opacity} display={pill.opacity.toFixed(2)}
                 onChange={v => setPill(p => ({ ...p, opacity: parseFloat(v.toFixed(2)) }))}
                 colors={colors} s={s} />
-              <Pressable style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveHandle} disabled={saving}>
-                <Text style={s.saveBtnText}>{saving ? "Saving…" : "Save Handle Settings"}</Text>
-              </Pressable>
             </View>
           </ScrollView>
         </View>
@@ -526,6 +522,18 @@ export default function Index() {
                 <Switch
                   value={overlay.showLabels}
                   onValueChange={v => setOverlay(p => ({ ...p, showLabels: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>Recent apps</Text>
+                  <Text style={s.rowSub}>Show 4 most recently used apps at the top of the panel (requires Usage Access)</Text>
+                </View>
+                <Switch
+                  value={overlay.showRecentApps}
+                  onValueChange={v => setOverlay(p => ({ ...p, showRecentApps: v }))}
                   trackColor={{ true: colors.tint }}
                 />
               </View>
@@ -606,9 +614,6 @@ export default function Index() {
                   );
                 })
               )}
-              <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
-                <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save Behavior Settings"}</Text>
-              </Pressable>
             </View>
           </ScrollView>
         </View>
@@ -683,15 +688,6 @@ export default function Index() {
                 </View>
                 <View style={s.separator} />
                 <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Volume slider</Text>
-                  <Switch
-                    value={overlay.showVolumeSlider}
-                    onValueChange={v => setOverlay(p => ({ ...p, showVolumeSlider: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
-                <View style={s.separator} />
-                <View style={s.row}>
                   <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Quick Share</Text>
                   <Switch
                     value={overlay.showQuickShare}
@@ -746,9 +742,6 @@ export default function Index() {
                 </View>
               </Animated.View>
             </View>
-            <Pressable style={[s.saveBtn, savingOverlay && s.saveBtnDisabled]} onPress={saveOverlay} disabled={savingOverlay}>
-              <Text style={s.saveBtnText}>{savingOverlay ? "Saving…" : "Save"}</Text>
-            </Pressable>
             {(() => {
               const granted = [permissionGranted, dndPerm, writePerm].filter(Boolean).length;
               return (

@@ -15,6 +15,7 @@ import android.graphics.drawable.LayerDrawable
 import android.accessibilityservice.AccessibilityService
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.app.usage.UsageStatsManager
 import android.media.AudioManager
 import android.net.Uri
 import android.provider.MediaStore
@@ -215,8 +216,8 @@ class SidebarOverlayService : Service() {
         val gestureSwipeDown: String,
         val gestureDoubleTap: String,
         val showBrightnessSlider: Boolean,
-        val showVolumeSlider: Boolean,
         val showQuickShare: Boolean,
+        val showRecentApps: Boolean,
         val showPower: Boolean,
         val showQr: Boolean,
         val showDnd: Boolean
@@ -289,8 +290,8 @@ class SidebarOverlayService : Service() {
             p.getString(Prefs.GESTURE_SWIPE_DOWN, "notifications") ?: "notifications",
             p.getString(Prefs.GESTURE_DOUBLE_TAP, "none") ?: "none",
             p.getBoolean(Prefs.SHOW_BRIGHTNESS_SLIDER, false),
-            p.getBoolean(Prefs.SHOW_VOLUME_SLIDER, false),
             p.getBoolean(Prefs.SHOW_QUICK_SHARE, false),
+            p.getBoolean(Prefs.SHOW_RECENT_APPS, false),
             p.getBoolean(Prefs.SHOW_POWER, false),
             p.getBoolean(Prefs.SHOW_QR, false),
             p.getBoolean(Prefs.SHOW_DND, false)
@@ -449,7 +450,7 @@ class SidebarOverlayService : Service() {
 
         val hasQC = oPrefs.quickControlsEnabled &&
             (oPrefs.showTorch || oPrefs.showAutoRotate || oPrefs.showAutoBrightness || oPrefs.showRingerMode ||
-             oPrefs.showBrightnessSlider || oPrefs.showVolumeSlider || oPrefs.showQuickShare ||
+             oPrefs.showBrightnessSlider || oPrefs.showQuickShare ||
              oPrefs.showPower || oPrefs.showQr || oPrefs.showDnd)
         val hasActions = oPrefs.quickControlsEnabled && (oPrefs.showAllApps || oPrefs.showEdit)
         val hasControls = hasQC || hasActions
@@ -464,8 +465,7 @@ class SidebarOverlayService : Service() {
             oPrefs.showAutoBrightness || oPrefs.showRingerMode,
             oPrefs.showQuickShare || oPrefs.showPower,
             oPrefs.showQr || oPrefs.showDnd,
-            oPrefs.showBrightnessSlider,
-            oPrefs.showVolumeSlider
+            oPrefs.showBrightnessSlider
         ).count { it } else 0) + (if (hasActions) 1 else 0)
         val controlsH = if (hasControls) dp(8) + numCtrlRows * dp(60) + (numCtrlRows - 1) * dp(6) + dp(8) + dp(6) else 0
         val appsH = dp(4) + rows * rowH + dp(16)
@@ -539,21 +539,6 @@ class SidebarOverlayService : Service() {
                 ) { setBrightness(it) }, LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }
-            if (oPrefs.showVolumeSlider) {
-                val am = getSystemService(AUDIO_SERVICE) as AudioManager
-                controlsStrip.addView(makeSliderRow(
-                    "\uE050", am.getStreamVolume(AudioManager.STREAM_MUSIC),
-                    0, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
-                    labelColor, tileActive, tileBg
-                ) { v ->
-                    try { am.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0) }
-                    catch (e: Exception) { Log.w(TAG, "setStreamVolume failed", e) }
-                },
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { if (oPrefs.showBrightnessSlider) topMargin = dp(6) })
-            }
-
             val ctrlRow1 = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
@@ -627,6 +612,53 @@ class SidebarOverlayService : Service() {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(4), dp(4), dp(4), dp(16))
+        }
+
+        if (oPrefs.showRecentApps) {
+            val recents = getRecentApps(4)
+            if (recents.isNotEmpty()) {
+                var recRow: LinearLayout? = null
+                for ((i, pkg) in recents.withIndex()) {
+                    if (i % cols == 0) {
+                        recRow = LinearLayout(this).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            layoutParams = LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.MATCH_PARENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT
+                            )
+                        }
+                        container.addView(recRow)
+                    }
+                    val cached = appIconCache[pkg]
+                    if (cached != null) {
+                        recRow?.addView(makeAppCell(pkg, cached.first, cached.second, labelColor, oPrefs.showLabels))
+                    } else {
+                        try {
+                            val info = pm.getApplicationInfo(pkg, 0)
+                            recRow?.addView(makeAppCell(pkg, pm.getApplicationLabel(info).toString(),
+                                pm.getApplicationIcon(pkg), labelColor, oPrefs.showLabels))
+                        } catch (e: Exception) {
+                            recRow?.addView(View(this).apply {
+                                layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
+                            })
+                        }
+                    }
+                }
+                val rem = recents.size % cols
+                if (rem != 0) repeat(cols - rem) {
+                    recRow?.addView(View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    })
+                }
+                if (pkgs.isNotEmpty()) {
+                    container.addView(View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
+                        ).apply { marginStart = dp(12); marginEnd = dp(12); topMargin = dp(4); bottomMargin = dp(4) }
+                        setBackgroundColor(Color.argb(40, 128, 128, 128))
+                    })
+                }
+            }
         }
 
         if (pkgs.isEmpty()) {
@@ -1521,6 +1553,24 @@ class SidebarOverlayService : Service() {
                 Log.e(TAG, "Failed to parse favorites JSON", e)
             }
         }
+    }
+
+    private fun getRecentApps(count: Int): List<String> {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
+        if (mode != AppOpsManager.MODE_ALLOWED) return emptyList()
+        val usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val end = System.currentTimeMillis()
+        val start = end - 7 * 24 * 60 * 60 * 1000L
+        val pm = packageManager
+        return usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end)
+            .filter { it.packageName != packageName && it.lastTimeUsed > 0 }
+            .sortedByDescending { it.lastTimeUsed }
+            .map { it.packageName }
+            .filter { pkg -> try { pm.getApplicationInfo(pkg, 0); true } catch (e: Exception) { false } }
+            .distinct()
+            .take(count)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
