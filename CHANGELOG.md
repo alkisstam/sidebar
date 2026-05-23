@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.1] - 2026-05-23
+
+### Added
+
+- Recent apps section at the top of the panel: when enabled, the first two rows show the four most recently used apps, separated from favorites by a subtle divider; toggle in Behavior tab (requires Usage Access permission)
+
+### Changed
+
+- Settings now apply immediately on change (600 ms debounce) — Save buttons removed from Handle, Behavior, and Control tabs
+
+### Removed
+
+- Volume slider removed from the panel and Control tab (was non-functional)
+
 ## [2.0.0] - 2026-05-20
 
 ### Changed
