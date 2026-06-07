@@ -51,11 +51,8 @@ class SidebarOverlayService : Service() {
 
     private var vibrationEnabled = true
 
-    // Collapsible controls strip state
-    private var ctrlWrapperView: FrameLayout? = null
-    private var ctrlChevronView: TextView? = null
-    private var controlsExpanded = false
-    private var ctrlFullH = 0
+    private var controlsPanelView: View? = null
+    private var volumePanelView: View? = null
 
     private val iconTypeface: android.graphics.Typeface by lazy {
         android.graphics.Typeface.createFromAsset(assets, "fonts/MaterialIcons-Regular.ttf")
@@ -448,28 +445,15 @@ class SidebarOverlayService : Service() {
         val light = prefs.theme == "light"
         val effectiveSide = if (prefs.side == "both") lastActiveSide else prefs.side
 
-        val hasQC = oPrefs.quickControlsEnabled &&
-            (oPrefs.showTorch || oPrefs.showAutoRotate || oPrefs.showAutoBrightness || oPrefs.showRingerMode ||
-             oPrefs.showBrightnessSlider || oPrefs.showQuickShare ||
-             oPrefs.showPower || oPrefs.showQr || oPrefs.showDnd)
-        val hasActions = oPrefs.quickControlsEnabled && (oPrefs.showAllApps || oPrefs.showEdit)
-        val hasControls = hasQC || hasActions
-
         val screenHeight = resources.displayMetrics.heightPixels
-        val maxPanelHeight = (screenHeight * 0.72).toInt()
-        val cols = 2
-        val rows = if (pkgs.isEmpty()) 1 else (pkgs.size + 1) / 2
-        val rowH = if (oPrefs.showLabels) dp(82) else dp(68)
-        val numCtrlRows = (if (hasQC) listOf(
-            oPrefs.showTorch || oPrefs.showAutoRotate,
-            oPrefs.showAutoBrightness || oPrefs.showRingerMode,
-            oPrefs.showQuickShare || oPrefs.showPower,
-            oPrefs.showQr || oPrefs.showDnd,
-            oPrefs.showBrightnessSlider
-        ).count { it } else 0) + (if (hasActions) 1 else 0)
-        val controlsH = if (hasControls) dp(8) + numCtrlRows * dp(60) + (numCtrlRows - 1) * dp(6) + dp(8) + dp(6) else 0
-        val appsH = dp(4) + rows * rowH + dp(16)
-        val panelHeight = (dp(24) + controlsH + appsH).coerceAtMost(maxPanelHeight)
+        // Tools(56)+Vol(44)+divider(1)+padding(12)+6 cells×68dp
+        val maxPanelHeight = dp(521)
+        val recents = if (oPrefs.showRecentApps) getRecentApps(4) else emptyList()
+        val totalAppCount = recents.size + pkgs.size
+        val appH = if (totalAppCount == 0) dp(60) else totalAppCount * dp(68)
+        val panelHeight = (dp(101) + appH).coerceAtMost(maxPanelHeight)
+        val handleCenterY = (prefs.position * screenHeight).toInt()
+        val panelY = (handleCenterY - panelHeight / 2).coerceIn(0, screenHeight - panelHeight)
 
         val overlay = View(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
@@ -484,304 +468,154 @@ class SidebarOverlayService : Service() {
         ))
         dismissOverlay = overlay
 
-        // M3 color tokens
-        val panelBg    = resolvePanelBg(prefs.panelColor, 248, light)
-        val controlsBg = resolveControlsBg(panelBg, prefs.panelColor, light)
+        val panelBg = resolvePanelBg(prefs.panelColor, 248, light)
         val effectiveLight = if (prefs.panelColor.isNotEmpty()) {
             val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
         } else light
-        val tileBg     = if (effectiveLight) Color.argb(130, 115, 105, 130) else Color.argb(130, 55, 52, 62)
-        val tileActive = if (effectiveLight) Color.argb(255, 103, 80, 164)  else Color.argb(255, 79, 55, 139)
-        val indClr     = if (effectiveLight) Color.argb(60, 0, 0, 0)        else Color.argb(80, 255, 255, 255)
-        val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
-        val emptyColor = if (effectiveLight) Color.argb(160, 73, 69, 79)    else Color.argb(160, 202, 196, 208)
+        val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31) else Color.argb(230, 230, 225, 229)
+        val emptyColor = if (effectiveLight) Color.argb(160, 73, 69, 79) else Color.argb(160, 202, 196, 208)
+        val iconColor  = if (effectiveLight) Color.argb(200, 28, 27, 31) else Color.argb(200, 230, 225, 229)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
                 setColor(panelBg)
-                cornerRadius = dp(22).toFloat()
+                cornerRadius = dp(32).toFloat()
             }
             elevation = dp(8).toFloat()
             clipToOutline = true
             outlineProvider = ViewOutlineProvider.BACKGROUND
         }
 
-        // Quick controls strip — different background, sits above the favorites grid
-        val controlsStrip = LinearLayout(this).apply {
+        val toolsBtn = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(controlsBg)
-                cornerRadius = dp(16).toFloat()
-            }
-            setPadding(dp(6), dp(8), dp(6), dp(8))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56))
+            isClickable = true
+            isFocusable = true
+        }
+        toolsBtn.addView(TextView(this).apply {
+            text = ""
+            textSize = 22f
+            gravity = Gravity.CENTER
+            setTextColor(iconColor)
+            typeface = iconTypeface
+        })
+        toolsBtn.addView(TextView(this).apply {
+            text = "Tools"
+            textSize = 9f
+            gravity = Gravity.CENTER
+            setTextColor(iconColor)
             layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { marginStart = dp(8); marginEnd = dp(8); topMargin = dp(6); bottomMargin = dp(6) }
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(2) }
+        })
+        toolsBtn.setOnClickListener { toggleControlsPanel(prefs, oPrefs, effectiveSide, panelY) }
+        root.addView(toolsBtn)
+
+        val volBtn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44))
+            isClickable = true
+            isFocusable = true
         }
+        volBtn.addView(TextView(this).apply {
+            text = ""
+            textSize = 20f
+            gravity = Gravity.CENTER
+            setTextColor(iconColor)
+            typeface = iconTypeface
+        })
+        volBtn.addView(TextView(this).apply {
+            text = "Vol"
+            textSize = 9f
+            gravity = Gravity.CENTER
+            setTextColor(iconColor)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(1) }
+        })
+        volBtn.setOnClickListener { toggleVolumePanel(prefs, effectiveSide, panelY) }
+        root.addView(volBtn)
 
-        if (hasQC) {
-            // Swipe down on the strip when expanded → collapse
-            val stripGd = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-                override fun onDown(e: MotionEvent): Boolean = true
-                override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
-                    if (e1 == null) return false
-                    if (e2.y - e1.y > dp(16) && controlsExpanded) { animateControls(); return true }
-                    return false
-                }
-            })
-            controlsStrip.setOnTouchListener { _, event -> stripGd.onTouchEvent(event) }
+        root.addView(View(this).apply {
+            setBackgroundColor(Color.argb(40, 128, 128, 128))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 1
+            ).apply { marginStart = dp(8); marginEnd = dp(8) }
+        })
 
-            if (oPrefs.showBrightnessSlider) {
-                controlsStrip.addView(makeSliderRow(
-                    "\uE430", getBrightness(), 0, 255, labelColor, tileActive, tileBg
-                ) { setBrightness(it) }, LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            }
-            val ctrlRow1 = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { if (controlsStrip.childCount > 0) topMargin = dp(6) }
-            }
-            if (oPrefs.showTorch) ctrlRow1.addView(makeControlTile("Torch", { "\uEA0B" }, tileBg, tileActive,
-                { torchEnabled }, { if (torchEnabled) "On" else "Off" }, stripGd) { toggleTorch() })
-            if (oPrefs.showAutoRotate) ctrlRow1.addView(makeControlTile("Rotate", { "\uE1C1" }, tileBg, tileActive,
-                { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }, stripGd) { toggleAutoRotate() })
-            if (ctrlRow1.childCount > 0) controlsStrip.addView(ctrlRow1)
-
-            val ctrlRow2 = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(6) }
-            }
-            if (oPrefs.showAutoBrightness) ctrlRow2.addView(makeControlTile("Brightness", { "\uE1AB" }, tileBg, tileActive,
-                { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }, stripGd) { toggleAutoBrightness() })
-            if (oPrefs.showRingerMode) ctrlRow2.addView(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
-                { isRingerActive() }, { getRingerSubtitle() }, stripGd) { toggleRingerMode() })
-            if (ctrlRow2.childCount > 0) controlsStrip.addView(ctrlRow2)
-
-            val ctrlRow3 = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(6) }
-            }
-            if (oPrefs.showQuickShare) ctrlRow3.addView(makeControlTile("Share", { "\uE80D" }, tileBg, tileActive,
-                { false }, { "" }, stripGd) { launchQuickShare() })
-            if (oPrefs.showPower) ctrlRow3.addView(makeControlTile("Power", { "\uE8AC" }, tileBg, tileActive,
-                { false }, { "" }, stripGd) { openPowerMenu() })
-            if (ctrlRow3.childCount > 0) controlsStrip.addView(ctrlRow3)
-
-            val ctrlRow4 = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(6) }
-            }
-            if (oPrefs.showQr) ctrlRow4.addView(makeControlTile("QR Scan", { "\uF206" }, tileBg, tileActive,
-                { false }, { "" }, stripGd) { launchQrScanner() })
-            if (oPrefs.showDnd) ctrlRow4.addView(makeControlTile("DND", { if (isDndEnabled()) "\uE644" else "\uE7F4" }, tileBg, tileActive,
-                { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }, stripGd) { toggleDnd() })
-            if (ctrlRow4.childCount > 0) controlsStrip.addView(ctrlRow4)
-        }
-        if (hasActions) {
-            val actionsRow = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { if (hasQC && controlsStrip.childCount > 0) topMargin = dp(6) }
-            }
-            if (oPrefs.showAllApps) actionsRow.addView(makeControlTile("All Apps", { "\uE5C3" }, tileBg, tileActive,
-                { false }, { "" }) { showAllAppsDrawer() })
-            if (oPrefs.showEdit) actionsRow.addView(makeControlTile("Edit", { "\uE3C9" }, tileBg, tileActive,
-                { false }, { "" }) {
-                hidePanel()
-                getSharedPreferences(Prefs.FILE, MODE_PRIVATE).edit().putString(Prefs.LAUNCH_TAB, "apps").apply()
-                packageManager.getLaunchIntentForPackage(packageName)
-                    ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) }
-                    ?.let { startActivity(it) }
-            })
-            if (actionsRow.childCount > 0) controlsStrip.addView(actionsRow)
-        }
-
-        // Favorites app grid
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(4), dp(4), dp(4), dp(16))
+            setPadding(dp(4), dp(4), dp(4), dp(8))
         }
 
-        if (oPrefs.showRecentApps) {
-            val recents = getRecentApps(4)
-            if (recents.isNotEmpty()) {
-                var recRow: LinearLayout? = null
-                for ((i, pkg) in recents.withIndex()) {
-                    if (i % cols == 0) {
-                        recRow = LinearLayout(this).apply {
-                            orientation = LinearLayout.HORIZONTAL
-                            layoutParams = LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.MATCH_PARENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                            )
-                        }
-                        container.addView(recRow)
-                    }
-                    val cached = appIconCache[pkg]
-                    if (cached != null) {
-                        recRow?.addView(makeAppCell(pkg, cached.first, cached.second, labelColor, oPrefs.showLabels))
-                    } else {
-                        try {
-                            val info = pm.getApplicationInfo(pkg, 0)
-                            recRow?.addView(makeAppCell(pkg, pm.getApplicationLabel(info).toString(),
-                                pm.getApplicationIcon(pkg), labelColor, oPrefs.showLabels))
-                        } catch (e: Exception) {
-                            recRow?.addView(View(this).apply {
-                                layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
-                            })
+        fun loadCell(pkg: String): View? {
+            val cached = appIconCache[pkg]
+            val cell = if (cached != null) {
+                makeAppCell(pkg, cached.first, cached.second, labelColor, false)
+            } else {
+                try {
+                    val info = pm.getApplicationInfo(pkg, 0)
+                    makeAppCell(pkg, pm.getApplicationLabel(info).toString(),
+                        pm.getApplicationIcon(pkg), labelColor, false)
+                } catch (e: Exception) { null }
+            }
+            return cell?.also { v ->
+                (v as? ViewGroup)?.getChildAt(0)?.let { iv ->
+                    iv.clipToOutline = true
+                    iv.outlineProvider = object : ViewOutlineProvider() {
+                        override fun getOutline(view: View, outline: android.graphics.Outline) {
+                            outline.setOval(0, 0, view.width, view.height)
                         }
                     }
-                }
-                val rem = recents.size % cols
-                if (rem != 0) repeat(cols - rem) {
-                    recRow?.addView(View(this).apply {
-                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    })
-                }
-                if (pkgs.isNotEmpty()) {
-                    container.addView(View(this).apply {
-                        layoutParams = LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
-                        ).apply { marginStart = dp(12); marginEnd = dp(12); topMargin = dp(4); bottomMargin = dp(4) }
-                        setBackgroundColor(Color.argb(40, 128, 128, 128))
-                    })
                 }
             }
         }
 
-        if (pkgs.isEmpty()) {
+        for (pkg in recents) {
+            loadCell(pkg)?.let { cell ->
+                cell.layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                container.addView(cell)
+            }
+        }
+        if (recents.isNotEmpty() && pkgs.isNotEmpty()) {
+            container.addView(View(this).apply {
+                setBackgroundColor(Color.argb(40, 128, 128, 128))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
+                ).apply { marginStart = dp(8); marginEnd = dp(8); topMargin = dp(4); bottomMargin = dp(4) }
+            })
+        }
+
+        if (pkgs.isEmpty() && recents.isEmpty()) {
             container.addView(TextView(this).apply {
-                text = "No favorites yet.\nOpen the Sidebar app\nto choose your apps."
+                text = "No\nfavs"
                 setTextColor(emptyColor)
-                textSize = 13f
+                textSize = 11f
                 gravity = Gravity.CENTER
-                setPadding(dp(16), dp(20), dp(16), dp(20))
+                setPadding(dp(4), dp(16), dp(4), dp(16))
             })
         } else {
-            var row: LinearLayout? = null
-            for ((index, pkg) in pkgs.withIndex()) {
-                if (index % cols == 0) {
-                    row = LinearLayout(this).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                        layoutParams = LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                    }
-                    container.addView(row)
-                }
-                val cached = appIconCache[pkg]
-                if (cached != null) {
-                    row?.addView(makeAppCell(pkg, cached.first, cached.second, labelColor, oPrefs.showLabels))
-                } else {
-                    try {
-                        val info = pm.getApplicationInfo(pkg, 0)
-                        val name = pm.getApplicationLabel(info).toString()
-                        val icon = pm.getApplicationIcon(pkg)
-                        row?.addView(makeAppCell(pkg, name, icon, labelColor, oPrefs.showLabels))
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to load app info for $pkg", e)
-                        row?.addView(View(this).apply {
-                            layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
-                        })
-                    }
-                }
-            }
-            val rem = pkgs.size % cols
-            if (rem != 0) {
-                repeat(cols - rem) {
-                    row?.addView(View(this).apply {
-                        layoutParams = LinearLayout.LayoutParams(
-                            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    })
+            for (pkg in pkgs) {
+                loadCell(pkg)?.let { cell ->
+                    cell.layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    container.addView(cell)
                 }
             }
         }
 
         scroll.addView(container)
-        root.addView(scroll, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        if (hasControls) {
-            if (hasQC) {
-                ctrlFullH = controlsH - dp(6)
-                controlsExpanded = false
-                val wrapper = FrameLayout(this).apply {
-                    clipChildren = true
-                    clipToPadding = true
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, 0)
-                }
-                (controlsStrip.layoutParams as LinearLayout.LayoutParams).bottomMargin = 0
-                wrapper.addView(controlsStrip)
-                ctrlWrapperView = wrapper
-                root.addView(wrapper)
-            } else {
-                root.addView(controlsStrip)
-            }
-        }
-
-        if (hasQC && hasControls) {
-            val chevronTv = TextView(this).apply {
-                text = "Swipe up"
-                textSize = 10f
-                gravity = Gravity.CENTER
-                setTextColor(indClr)
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, dp(22))
-            }
-            ctrlChevronView = chevronTv
-
-            val handle = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER_HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            }
-            handle.addView(chevronTv)
-            handle.addView(TextView(this).apply {
-                text = "Controls"
-                textSize = 16f
-                gravity = Gravity.CENTER
-                setTextColor(indClr)
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, dp(24))
-            })
-
-            val gd = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-                override fun onDown(e: MotionEvent): Boolean = true
-                override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
-                    if (e1 == null) return false
-                    val dy = e2.y - e1.y
-                    if (Math.abs(dy) < dp(16)) return false
-                    if (dy < 0 && !controlsExpanded) { animateControls(); return true }
-                    if (dy > 0 && controlsExpanded)  { animateControls(); return true }
-                    return false
-                }
-            })
-            handle.setOnTouchListener { _, event -> gd.onTouchEvent(event) }
-            root.addView(handle)
-        }
-
-        val handleCenterY = (prefs.position * screenHeight).toInt()
-        val panelY = (handleCenterY - panelHeight / 2)
-            .coerceIn(0, screenHeight - panelHeight)
         val panelGravity = if (effectiveSide == "left") Gravity.START or Gravity.TOP
                            else Gravity.END or Gravity.TOP
         wm.addView(root, WindowManager.LayoutParams(
-            dp(168), panelHeight,
+            dp(64), panelHeight,
             overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -793,7 +627,7 @@ class SidebarOverlayService : Service() {
         handleView?.visibility = View.INVISIBLE
         handleViewAlt?.visibility = View.INVISIBLE
 
-        val slideFrom = if (effectiveSide == "left") -dp(168).toFloat() else dp(168).toFloat()
+        val slideFrom = if (effectiveSide == "left") -dp(64).toFloat() else dp(64).toFloat()
         root.translationX = slideFrom
         root.alpha = 0f
         root.scaleX = 0.92f
@@ -804,35 +638,289 @@ class SidebarOverlayService : Service() {
             .start()
     }
 
-    private fun animateControls() {
-        val wrapper = ctrlWrapperView ?: return
-        val chevron = ctrlChevronView
-        val fromH = if (controlsExpanded) ctrlFullH else 0
-        val toH   = if (controlsExpanded) 0 else ctrlFullH
-        ValueAnimator.ofInt(fromH, toH).apply {
-            duration = 220
-            interpolator = if (controlsExpanded) AccelerateInterpolator(1.4f) else DecelerateInterpolator(1.4f)
-            addUpdateListener { anim ->
-                val h = anim.animatedValue as Int
-                (wrapper.layoutParams as LinearLayout.LayoutParams).height = h
-                wrapper.requestLayout()
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    controlsExpanded = !controlsExpanded
-                    chevron?.text = if (controlsExpanded) "∨" else "∧"
-                }
-            })
-            start()
+    private fun toggleControlsPanel(prefs: PillPrefs, oPrefs: OverlayPrefs, effectiveSide: String, panelY: Int) {
+        volumePanelView?.let { runCatching { wm.removeViewImmediate(it) } }
+        volumePanelView = null
+
+        val existing = controlsPanelView
+        if (existing != null) {
+            controlsPanelView = null
+            val slideTo = if (effectiveSide == "left") -dp(220).toFloat() else dp(220).toFloat()
+            existing.animate().withLayer()
+                .translationX(slideTo).alpha(0f)
+                .setDuration(160).setInterpolator(AccelerateInterpolator(2.2f))
+                .withEndAction { runCatching { wm.removeViewImmediate(existing) } }
+                .start()
+            return
         }
+
+        val light = prefs.theme == "light"
+        val panelBg    = resolvePanelBg(prefs.panelColor, 248, light)
+        val effectiveLight = if (prefs.panelColor.isNotEmpty()) {
+            val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
+        } else light
+        val tileBg     = if (effectiveLight) Color.argb(130, 115, 105, 130) else Color.argb(130, 55, 52, 62)
+        val tileActive = if (effectiveLight) Color.argb(255, 103, 80, 164)  else Color.argb(255, 79, 55, 139)
+        val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
+
+        val ctrl = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(panelBg)
+                cornerRadius = dp(22).toFloat()
+            }
+            elevation = dp(8).toFloat()
+            clipToOutline = true
+            outlineProvider = ViewOutlineProvider.BACKGROUND
+            setPadding(dp(6), dp(8), dp(6), dp(8))
+        }
+
+        if (oPrefs.showBrightnessSlider) {
+            val sliderRow = makeSliderRow(
+                "", getBrightness(), 0, 255, labelColor, tileActive, tileBg
+            ) { setBrightness(it) }
+            ctrl.addView(sliderRow, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(6) })
+        }
+
+        val tileViews = mutableListOf<View>()
+        if (oPrefs.showTorch) tileViews.add(makeControlTile("Torch", { "" }, tileBg, tileActive,
+            { torchEnabled }, { if (torchEnabled) "On" else "Off" }) { toggleTorch() })
+        if (oPrefs.showAutoRotate) tileViews.add(makeControlTile("Rotate", { "" }, tileBg, tileActive,
+            { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }) { toggleAutoRotate() })
+        if (oPrefs.showAutoBrightness) tileViews.add(makeControlTile("Brightness", { "" }, tileBg, tileActive,
+            { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }) { toggleAutoBrightness() })
+        if (oPrefs.showRingerMode) tileViews.add(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
+            { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
+        if (oPrefs.showQuickShare) tileViews.add(makeControlTile("Share", { "" }, tileBg, tileActive,
+            { false }, { "" }) { launchQuickShare() })
+        if (oPrefs.showPower) tileViews.add(makeControlTile("Power", { "" }, tileBg, tileActive,
+            { false }, { "" }) { openPowerMenu() })
+        if (oPrefs.showQr) tileViews.add(makeControlTile("QR Scan", { "" }, tileBg, tileActive,
+            { false }, { "" }) { launchQrScanner() })
+        if (oPrefs.showDnd) tileViews.add(makeControlTile("DND", { if (isDndEnabled()) "" else "" }, tileBg, tileActive,
+            { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }) { toggleDnd() })
+
+        tileViews.chunked(3).forEachIndexed { idx, chunk ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { if (idx > 0 || oPrefs.showBrightnessSlider) topMargin = dp(6) }
+            }
+            chunk.forEach { row.addView(it) }
+            repeat(3 - chunk.size) {
+                row.addView(View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, dp(60), 1f).apply {
+                        marginStart = dp(3); marginEnd = dp(3)
+                    }
+                })
+            }
+            ctrl.addView(row)
+        }
+
+        val actRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { if (tileViews.isNotEmpty() || oPrefs.showBrightnessSlider) topMargin = dp(6) }
+        }
+        actRow.addView(makeControlTile("All Apps", { "" }, tileBg, tileActive,
+            { false }, { "" }) { showAllAppsDrawer() })
+        actRow.addView(makeControlTile("Edit", { "" }, tileBg, tileActive,
+            { false }, { "" }) {
+            hidePanel()
+            getSharedPreferences(Prefs.FILE, MODE_PRIVATE).edit().putString(Prefs.LAUNCH_TAB, "apps").apply()
+            packageManager.getLaunchIntentForPackage(packageName)
+                ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) }
+                ?.let { startActivity(it) }
+        })
+        ctrl.addView(actRow)
+
+        val screenHeight = resources.displayMetrics.heightPixels
+        val panelGravity = if (effectiveSide == "left") Gravity.START or Gravity.TOP
+                           else Gravity.END or Gravity.TOP
+        wm.addView(ctrl, WindowManager.LayoutParams(
+            dp(220), WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = panelGravity; x = dp(76); y = panelY.coerceIn(0, screenHeight - dp(200)) })
+
+        controlsPanelView = ctrl
+
+        val slideFrom = if (effectiveSide == "left") -dp(220).toFloat() else dp(220).toFloat()
+        ctrl.translationX = slideFrom
+        ctrl.alpha = 0f
+        ctrl.animate().withLayer()
+            .translationX(0f).alpha(1f)
+            .setDuration(220).setInterpolator(DecelerateInterpolator(2.5f))
+            .start()
+    }
+
+    private fun toggleVolumePanel(prefs: PillPrefs, effectiveSide: String, panelY: Int) {
+        controlsPanelView?.let { runCatching { wm.removeViewImmediate(it) } }
+        controlsPanelView = null
+
+        val existing = volumePanelView
+        if (existing != null) {
+            volumePanelView = null
+            val slideTo = if (effectiveSide == "left") -dp(220).toFloat() else dp(220).toFloat()
+            existing.animate().withLayer()
+                .translationX(slideTo).alpha(0f)
+                .setDuration(160).setInterpolator(AccelerateInterpolator(2.2f))
+                .withEndAction { runCatching { wm.removeViewImmediate(existing) } }
+                .start()
+            return
+        }
+
+        val light = prefs.theme == "light"
+        val panelBg    = resolvePanelBg(prefs.panelColor, 248, light)
+        val effectiveLight = if (prefs.panelColor.isNotEmpty()) {
+            val hsv = FloatArray(3); Color.colorToHSV(panelBg, hsv); hsv[2] > 0.5f
+        } else light
+        val tileBg     = if (effectiveLight) Color.argb(130, 115, 105, 130) else Color.argb(130, 55, 52, 62)
+        val tileActive = if (effectiveLight) Color.argb(255, 103, 80, 164)  else Color.argb(255, 79, 55, 139)
+        val labelColor = if (effectiveLight) Color.argb(230, 28, 27, 31)    else Color.argb(230, 230, 225, 229)
+
+        val am = getSystemService(AUDIO_SERVICE) as AudioManager
+
+        val ctrl = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(panelBg)
+                cornerRadius = dp(22).toFloat()
+            }
+            elevation = dp(8).toFloat()
+            clipToOutline = true
+            outlineProvider = ViewOutlineProvider.BACKGROUND
+            clipChildren = false
+            clipToPadding = false
+            setPadding(dp(8), dp(12), dp(8), dp(12))
+        }
+
+        val streams = listOf(
+            Triple(AudioManager.STREAM_MUSIC,        "", "Media"),
+            Triple(AudioManager.STREAM_RING,         "", "Ring"),
+            Triple(AudioManager.STREAM_NOTIFICATION, "", "Notif"),
+            Triple(AudioManager.STREAM_ALARM,        "", "Alarm")
+        )
+
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            clipChildren = false
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+
+        for ((stream, icon, label) in streams) {
+            val maxVol = am.getStreamMaxVolume(stream)
+            val curVol = am.getStreamVolume(stream)
+
+            val col = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                clipChildren = false
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+
+            col.addView(TextView(this).apply {
+                text = icon
+                textSize = 18f
+                gravity = Gravity.CENTER
+                setTextColor(labelColor)
+                typeface = iconTypeface
+                background = GradientDrawable().apply { setColor(tileBg); cornerRadius = dp(12).toFloat() }
+                val sz = dp(40)
+                setPadding(dp(4), dp(4), dp(4), dp(4))
+                layoutParams = LinearLayout.LayoutParams(sz, sz)
+            })
+
+            val sliderVisualW = dp(36)
+            val sliderVisualH = dp(160)
+            val frame = FrameLayout(this).apply {
+                clipChildren = false
+                clipToPadding = false
+                layoutParams = LinearLayout.LayoutParams(sliderVisualW, sliderVisualH).apply { topMargin = dp(10) }
+            }
+            val trackH = sliderVisualW
+            val r = trackH / 2f
+            val bgGd = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE; cornerRadius = r; setColor(tileBg)
+            }
+            val fillGd = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE; cornerRadius = r; setColor(tileActive)
+            }
+            val trackDrawable = LayerDrawable(arrayOf(bgGd,
+                ClipDrawable(fillGd, Gravity.START, ClipDrawable.HORIZONTAL))).apply {
+                setId(0, android.R.id.background); setId(1, android.R.id.progress)
+            }
+            val seekBar = SeekBar(this).apply {
+                max = maxVol
+                progress = curVol
+                rotation = -90f
+                progressDrawable = trackDrawable
+                thumb = null
+                splitTrack = false
+                layoutParams = FrameLayout.LayoutParams(sliderVisualH, sliderVisualW, Gravity.CENTER)
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
+                        if (fromUser) am.setStreamVolume(stream, progress, 0)
+                    }
+                    override fun onStartTrackingTouch(sb: SeekBar) {}
+                    override fun onStopTrackingTouch(sb: SeekBar) {}
+                })
+            }
+            frame.addView(seekBar)
+            col.addView(frame)
+
+            col.addView(TextView(this).apply {
+                text = label
+                textSize = 10f
+                gravity = Gravity.CENTER
+                setTextColor(labelColor)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(8) }
+            })
+
+            row.addView(col)
+        }
+        ctrl.addView(row)
+
+        val screenHeight = resources.displayMetrics.heightPixels
+        val panelGravity = if (effectiveSide == "left") Gravity.START or Gravity.TOP
+                           else Gravity.END or Gravity.TOP
+        wm.addView(ctrl, WindowManager.LayoutParams(
+            dp(220), WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = panelGravity; x = dp(76); y = panelY.coerceIn(0, screenHeight - dp(300)) })
+
+        volumePanelView = ctrl
+
+        val slideFrom = if (effectiveSide == "left") -dp(220).toFloat() else dp(220).toFloat()
+        ctrl.translationX = slideFrom
+        ctrl.alpha = 0f
+        ctrl.animate().withLayer()
+            .translationX(0f).alpha(1f)
+            .setDuration(220).setInterpolator(DecelerateInterpolator(2.5f))
+            .start()
     }
 
     private fun hidePanel() {
         if (!shown) return
         shown = false
-        ctrlWrapperView = null
-        ctrlChevronView = null
-        controlsExpanded = false
+        controlsPanelView?.let { runCatching { wm.removeViewImmediate(it) } }
+        controlsPanelView = null
+        volumePanelView?.let { runCatching { wm.removeViewImmediate(it) } }
+        volumePanelView = null
         val panel = panelView ?: run {
             dismissOverlay?.let { runCatching { wm.removeViewImmediate(it) } }
             dismissOverlay = null
@@ -848,7 +936,7 @@ class SidebarOverlayService : Service() {
         val handle = handleView
         val handleAlt = handleViewAlt
 
-        val slideTo = if (effectiveSide == "left") -dp(168).toFloat() else dp(168).toFloat()
+        val slideTo = if (effectiveSide == "left") -dp(64).toFloat() else dp(64).toFloat()
         panel.animate().withLayer()
             .translationX(slideTo).alpha(0f)
             .setDuration(160).setInterpolator(AccelerateInterpolator(2.2f))

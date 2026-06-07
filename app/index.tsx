@@ -722,24 +722,6 @@ export default function Index() {
                     trackColor={{ true: colors.tint }}
                   />
                 </View>
-                <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>All Apps</Text>
-                  <Switch
-                    value={overlay.showAllApps}
-                    onValueChange={v => setOverlay(p => ({ ...p, showAllApps: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
-                <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Edit</Text>
-                  <Switch
-                    value={overlay.showEdit}
-                    onValueChange={v => setOverlay(p => ({ ...p, showEdit: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
               </Animated.View>
             </View>
             {(() => {
