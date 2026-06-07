@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.2] - 2026-06-08
+
+### Added
+
+- Volume button in the sidebar column opens a 4-column vertical slider panel with independent sliders for Media, Ring, Notification, and Alarm volumes; uses `AudioManager.setStreamVolume` with rotated SeekBars and pill-shaped tracks
+- Tools and Volume panels are mutually exclusive — opening one dismisses the other
+
+### Changed
+
+- Sidebar panel redesigned to a slim 64 dp single-column layout: Tools button at top, app icon column below
+- Tools button opens a separate 220 dp controls panel beside the sidebar with the quick-control tiles in a 3-column grid
+- App icons are now circular (clipped with `ViewOutlineProvider.setOval`)
+- Sidebar background uses full 32 dp corner radius for a pill shape
+- Panel height capped to fit exactly 7 items (Tools + Volume buttons plus 6 app icons)
+- All Apps and Edit tiles are always visible at the bottom of the Tools panel; their individual toggles removed from the Control tab settings
+
 ## [2.0.1] - 2026-05-23
 
 ### Added
