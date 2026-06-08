@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.3] - 2026-06-08
+
+### Added
+
+- Volume tile in the Tools panel (toggle in Control tab); tapping opens the volume panel
+- Quick control tiles (Torch, Auto-rotate, Auto-brightness, Ringer, Quick Share, Power, QR, DND) are drag-reorderable from the Control tab settings — long-press the handle on any row to drag; order persists across restarts
+- Brightness slider and Volume toggles are pinned at the bottom of the accordion (not reorderable)
+
+### Fixed
+
+- Crash when opening the sidebar in landscape orientation (`IllegalArgumentException: Cannot coerce value to an empty range`) — panel height now clamped to screen height before any geometry calculations
+- Splash screen stuck after an orientation-change crash — panel and handle are always dismissed on configuration change so the service never enters a broken state
+
 ## [2.0.2] - 2026-06-08
 
 ### Added
