@@ -63,7 +63,22 @@ const DEFAULT_OVERLAY: OverlaySettings = {
   showBrightnessSlider: true, showQuickShare: true,
   showPower: true, showQr: true, showDnd: true,
   showRecentApps: false,
+  showVolume: true,
+  controlTilesOrder: ['torch','rotate','brightness','ringer','share','power','qr','dnd'],
 };
+
+const CONTROL_TILES = [
+  { id: 'torch',      label: 'Torch',            key: 'showTorch'         },
+  { id: 'rotate',     label: 'Auto-rotate',      key: 'showAutoRotate'    },
+  { id: 'brightness', label: 'Auto-brightness',  key: 'showAutoBrightness'},
+  { id: 'ringer',     label: 'Ringer mode',       key: 'showRingerMode'   },
+  { id: 'share',      label: 'Quick Share',       key: 'showQuickShare'   },
+  { id: 'power',      label: 'Power menu',        key: 'showPower'        },
+  { id: 'qr',         label: 'QR scanner',        key: 'showQr'           },
+  { id: 'dnd',        label: 'Do Not Disturb',    key: 'showDnd'          },
+] as const;
+
+type TileKey = typeof CONTROL_TILES[number]['key'];
 
 export default function Index() {
   const { appTheme, themeChoice, setThemeChoice } = useAppTheme();
@@ -272,6 +287,16 @@ export default function Index() {
   const colors = useMemo(() => makeColors(appTheme), [appTheme]);
 
   const s = useMemo(() => makeStyles(colors), [colors]);
+
+  const orderedTiles = useMemo(() => {
+    const order = overlay.controlTilesOrder ?? [];
+    const seen = new Set(order);
+    const rest = CONTROL_TILES.filter(t => !seen.has(t.id));
+    return [
+      ...order.map(id => CONTROL_TILES.find(t => t.id === id)).filter((t): t is typeof CONTROL_TILES[number] => !!t),
+      ...rest,
+    ];
+  }, [overlay.controlTilesOrder]);
 
   const renderFavItem = useCallback(
     ({ item, drag, isActive }: RenderItemParams<FavItem>) => (
@@ -642,42 +667,30 @@ export default function Index() {
               {/* Animated accordion body */}
               <Animated.View style={{ overflow: 'hidden', maxHeight: expandAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 2000] }) }}>
                 <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Torch</Text>
-                  <Switch
-                    value={overlay.showTorch}
-                    onValueChange={v => setOverlay(p => ({ ...p, showTorch: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
-                <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Auto-rotate</Text>
-                  <Switch
-                    value={overlay.showAutoRotate}
-                    onValueChange={v => setOverlay(p => ({ ...p, showAutoRotate: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
-                <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Auto-brightness</Text>
-                  <Switch
-                    value={overlay.showAutoBrightness}
-                    onValueChange={v => setOverlay(p => ({ ...p, showAutoBrightness: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
-                <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Ringer mode</Text>
-                  <Switch
-                    value={overlay.showRingerMode}
-                    onValueChange={v => setOverlay(p => ({ ...p, showRingerMode: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
-                <View style={s.separator} />
+                <DraggableFlatList
+                  data={orderedTiles}
+                  keyExtractor={item => item.id}
+                  scrollEnabled={false}
+                  renderItem={({ item, drag, isActive }: RenderItemParams<typeof CONTROL_TILES[number]>) => (
+                    <ScaleDecorator>
+                      <View style={[s.row, isActive && { opacity: 0.8 }]}>
+                        <Pressable onLongPress={drag} delayLongPress={150} hitSlop={8} style={{ paddingHorizontal: 10 }}>
+                          <Ionicons name="reorder-three-outline" size={20} color={colors.subtext} />
+                        </Pressable>
+                        <Text style={[s.rowLabel, { flex: 1 }]}>{item.label}</Text>
+                        <Switch
+                          value={overlay[item.key as TileKey]}
+                          onValueChange={v => setOverlay(p => ({ ...p, [item.key]: v }))}
+                          trackColor={{ true: colors.tint }}
+                        />
+                      </View>
+                      <View style={s.separator} />
+                    </ScaleDecorator>
+                  )}
+                  onDragEnd={({ data }) =>
+                    setOverlay(p => ({ ...p, controlTilesOrder: data.map(t => t.id) }))
+                  }
+                />
                 <View style={s.row}>
                   <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Brightness slider</Text>
                   <Switch
@@ -688,37 +701,10 @@ export default function Index() {
                 </View>
                 <View style={s.separator} />
                 <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Quick Share</Text>
+                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Volume</Text>
                   <Switch
-                    value={overlay.showQuickShare}
-                    onValueChange={v => setOverlay(p => ({ ...p, showQuickShare: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
-                <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Power menu</Text>
-                  <Switch
-                    value={overlay.showPower}
-                    onValueChange={v => setOverlay(p => ({ ...p, showPower: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
-                <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>QR scanner</Text>
-                  <Switch
-                    value={overlay.showQr}
-                    onValueChange={v => setOverlay(p => ({ ...p, showQr: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
-                <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Do Not Disturb</Text>
-                  <Switch
-                    value={overlay.showDnd}
-                    onValueChange={v => setOverlay(p => ({ ...p, showDnd: v }))}
+                    value={overlay.showVolume}
+                    onValueChange={v => setOverlay(p => ({ ...p, showVolume: v }))}
                     trackColor={{ true: colors.tint }}
                   />
                 </View>

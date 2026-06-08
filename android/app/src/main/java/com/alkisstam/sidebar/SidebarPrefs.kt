@@ -33,6 +33,8 @@ internal object Prefs {
     const val SHOW_QUICK_SHARE = "show_quick_share"
     const val SHOW_RECENT_APPS = "show_recent_apps"
     const val SHOW_POWER = "show_power"
-    const val SHOW_QR    = "show_qr"
-    const val SHOW_DND   = "show_dnd"
+    const val SHOW_QR     = "show_qr"
+    const val SHOW_DND    = "show_dnd"
+    const val SHOW_VOLUME         = "show_volume"
+    const val CONTROL_TILES_ORDER = "control_tiles_order"
 }

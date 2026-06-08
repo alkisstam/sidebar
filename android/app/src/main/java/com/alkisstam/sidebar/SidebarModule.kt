@@ -195,6 +195,9 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putBoolean("showPower", prefs.getBoolean(Prefs.SHOW_POWER, false))
         map.putBoolean("showQr", prefs.getBoolean(Prefs.SHOW_QR, false))
         map.putBoolean("showDnd", prefs.getBoolean(Prefs.SHOW_DND, false))
+        map.putBoolean("showVolume", prefs.getBoolean(Prefs.SHOW_VOLUME, true))
+        map.putString("controlTilesOrder", prefs.getString(Prefs.CONTROL_TILES_ORDER,
+            "[\"torch\",\"rotate\",\"brightness\",\"ringer\",\"share\",\"power\",\"qr\",\"dnd\"]"))
         promise.resolve(map)
     }
 
@@ -223,6 +226,8 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("showPower")) prefs.putBoolean(Prefs.SHOW_POWER, settings.getBoolean("showPower"))
         if (settings.hasKey("showQr")) prefs.putBoolean(Prefs.SHOW_QR, settings.getBoolean("showQr"))
         if (settings.hasKey("showDnd")) prefs.putBoolean(Prefs.SHOW_DND, settings.getBoolean("showDnd"))
+        if (settings.hasKey("showVolume")) prefs.putBoolean(Prefs.SHOW_VOLUME, settings.getBoolean("showVolume"))
+        if (settings.hasKey("controlTilesOrder")) prefs.putString(Prefs.CONTROL_TILES_ORDER, settings.getString("controlTilesOrder"))
         prefs.apply()
         val serviceEnabled = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
             .getBoolean(Prefs.SERVICE_ENABLED, false)

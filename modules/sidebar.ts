@@ -49,6 +49,8 @@ export interface OverlaySettings {
   showPower: boolean;
   showQr: boolean;
   showDnd: boolean;
+  showVolume: boolean;
+  controlTilesOrder: string[];
 }
 
 export default {
@@ -83,10 +85,19 @@ export default {
     return SidebarModule.getPillSettings();
   },
   getOverlaySettings(): Promise<OverlaySettings> {
-    return SidebarModule.getOverlaySettings();
+    return SidebarModule.getOverlaySettings().then((s: any) => ({
+      ...s,
+      controlTilesOrder: typeof s.controlTilesOrder === 'string'
+        ? JSON.parse(s.controlTilesOrder)
+        : s.controlTilesOrder,
+    }));
   },
   saveOverlaySettings(settings: OverlaySettings): Promise<void> {
-    return SidebarModule.saveOverlaySettings(settings);
+    const payload = {
+      ...settings,
+      controlTilesOrder: JSON.stringify(settings.controlTilesOrder),
+    };
+    return SidebarModule.saveOverlaySettings(payload);
   },
   getLaunchTab(): Promise<string | null> {
     return SidebarModule.getLaunchTab();

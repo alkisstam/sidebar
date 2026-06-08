@@ -217,7 +217,9 @@ class SidebarOverlayService : Service() {
         val showRecentApps: Boolean,
         val showPower: Boolean,
         val showQr: Boolean,
-        val showDnd: Boolean
+        val showDnd: Boolean,
+        val showVolume: Boolean,
+        val controlTilesOrder: List<String>
     )
 
     private fun pillPrefs(): PillPrefs {
@@ -241,10 +243,9 @@ class SidebarOverlayService : Service() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        val themeChoice = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
-            .getString(Prefs.THEME_CHOICE, "dark") ?: "dark"
-        if (themeChoice == "system") {
-            Handler(Looper.getMainLooper()).post { refreshHandle() }
+        Handler(Looper.getMainLooper()).post {
+            if (shown) hidePanel()
+            refreshHandle()
         }
     }
 
@@ -291,7 +292,16 @@ class SidebarOverlayService : Service() {
             p.getBoolean(Prefs.SHOW_RECENT_APPS, false),
             p.getBoolean(Prefs.SHOW_POWER, false),
             p.getBoolean(Prefs.SHOW_QR, false),
-            p.getBoolean(Prefs.SHOW_DND, false)
+            p.getBoolean(Prefs.SHOW_DND, false),
+            p.getBoolean(Prefs.SHOW_VOLUME, true),
+            run {
+                val default = listOf("torch","rotate","brightness","ringer","share","power","qr","dnd")
+                val json = p.getString(Prefs.CONTROL_TILES_ORDER, null) ?: return@run default
+                try {
+                    val arr = org.json.JSONArray(json)
+                    (0 until arr.length()).map { arr.getString(it) }
+                } catch (_: Exception) { default }
+            }
         )
     }
 
@@ -446,14 +456,14 @@ class SidebarOverlayService : Service() {
         val effectiveSide = if (prefs.side == "both") lastActiveSide else prefs.side
 
         val screenHeight = resources.displayMetrics.heightPixels
-        // Tools(56)+Vol(44)+divider(1)+padding(12)+6 cells×68dp
-        val maxPanelHeight = dp(521)
+        // Tools(56)+divider(1)+padding(12)+6 cells×68dp
+        val maxPanelHeight = dp(477)
         val recents = if (oPrefs.showRecentApps) getRecentApps(4) else emptyList()
         val totalAppCount = recents.size + pkgs.size
         val appH = if (totalAppCount == 0) dp(60) else totalAppCount * dp(68)
-        val panelHeight = (dp(101) + appH).coerceAtMost(maxPanelHeight)
+        val panelHeight = (dp(57) + appH).coerceAtMost(maxPanelHeight).coerceAtMost(screenHeight)
         val handleCenterY = (prefs.position * screenHeight).toInt()
-        val panelY = (handleCenterY - panelHeight / 2).coerceIn(0, screenHeight - panelHeight)
+        val panelY = (handleCenterY - panelHeight / 2).coerceIn(0, maxOf(0, screenHeight - panelHeight))
 
         val overlay = View(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
@@ -513,31 +523,6 @@ class SidebarOverlayService : Service() {
         toolsBtn.setOnClickListener { toggleControlsPanel(prefs, oPrefs, effectiveSide, panelY) }
         root.addView(toolsBtn)
 
-        val volBtn = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44))
-            isClickable = true
-            isFocusable = true
-        }
-        volBtn.addView(TextView(this).apply {
-            text = ""
-            textSize = 20f
-            gravity = Gravity.CENTER
-            setTextColor(iconColor)
-            typeface = iconTypeface
-        })
-        volBtn.addView(TextView(this).apply {
-            text = "Vol"
-            textSize = 9f
-            gravity = Gravity.CENTER
-            setTextColor(iconColor)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(1) }
-        })
-        volBtn.setOnClickListener { toggleVolumePanel(prefs, effectiveSide, panelY) }
-        root.addView(volBtn)
 
         root.addView(View(this).apply {
             setBackgroundColor(Color.argb(40, 128, 128, 128))
@@ -684,23 +669,22 @@ class SidebarOverlayService : Service() {
             ).apply { bottomMargin = dp(6) })
         }
 
+        val tileBuilders: Map<String, (() -> View)?> = mapOf(
+            "torch"      to (if (oPrefs.showTorch)        ({ makeControlTile("Torch",   { "" }, tileBg, tileActive, { torchEnabled },          { if (torchEnabled) "On" else "Off" })           { toggleTorch() } }) else null),
+            "rotate"     to (if (oPrefs.showAutoRotate)   ({ makeControlTile("Rotate",  { "" }, tileBg, tileActive, { isAutoRotateEnabled() },  { if (isAutoRotateEnabled()) "On" else "Off" })  { toggleAutoRotate() } }) else null),
+            "brightness" to (if (oPrefs.showAutoBrightness)({ makeControlTile("Brightness", { "" }, tileBg, tileActive, { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }) { toggleAutoBrightness() } }) else null),
+            "ringer"     to (if (oPrefs.showRingerMode)   ({ makeControlTile("Ringer",  { getRingerIcon() }, tileBg, tileActive, { isRingerActive() }, { getRingerSubtitle() })                        { toggleRingerMode() } }) else null),
+            "share"      to (if (oPrefs.showQuickShare)   ({ makeControlTile("Share",   { "" }, tileBg, tileActive, { false },                 { "" })                                          { launchQuickShare() } }) else null),
+            "power"      to (if (oPrefs.showPower)        ({ makeControlTile("Power",   { "" }, tileBg, tileActive, { false },                 { "" })                                          { openPowerMenu() } }) else null),
+            "qr"         to (if (oPrefs.showQr)           ({ makeControlTile("QR Scan", { "" }, tileBg, tileActive, { false },                 { "" })                                          { launchQrScanner() } }) else null),
+            "dnd"        to (if (oPrefs.showDnd)          ({ makeControlTile("DND",     { if (isDndEnabled()) "" else "" }, tileBg, tileActive, { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }) { toggleDnd() } }) else null),
+        )
+        val knownOrder = oPrefs.controlTilesOrder
         val tileViews = mutableListOf<View>()
-        if (oPrefs.showTorch) tileViews.add(makeControlTile("Torch", { "" }, tileBg, tileActive,
-            { torchEnabled }, { if (torchEnabled) "On" else "Off" }) { toggleTorch() })
-        if (oPrefs.showAutoRotate) tileViews.add(makeControlTile("Rotate", { "" }, tileBg, tileActive,
-            { isAutoRotateEnabled() }, { if (isAutoRotateEnabled()) "On" else "Off" }) { toggleAutoRotate() })
-        if (oPrefs.showAutoBrightness) tileViews.add(makeControlTile("Brightness", { "" }, tileBg, tileActive,
-            { isAutoBrightnessEnabled() }, { if (isAutoBrightnessEnabled()) "Auto" else "Manual" }) { toggleAutoBrightness() })
-        if (oPrefs.showRingerMode) tileViews.add(makeControlTile("Ringer", { getRingerIcon() }, tileBg, tileActive,
-            { isRingerActive() }, { getRingerSubtitle() }) { toggleRingerMode() })
-        if (oPrefs.showQuickShare) tileViews.add(makeControlTile("Share", { "" }, tileBg, tileActive,
-            { false }, { "" }) { launchQuickShare() })
-        if (oPrefs.showPower) tileViews.add(makeControlTile("Power", { "" }, tileBg, tileActive,
-            { false }, { "" }) { openPowerMenu() })
-        if (oPrefs.showQr) tileViews.add(makeControlTile("QR Scan", { "" }, tileBg, tileActive,
-            { false }, { "" }) { launchQrScanner() })
-        if (oPrefs.showDnd) tileViews.add(makeControlTile("DND", { if (isDndEnabled()) "" else "" }, tileBg, tileActive,
-            { isDndEnabled() }, { if (isDndEnabled()) "On" else "Off" }) { toggleDnd() })
+        for (id in knownOrder) tileBuilders[id]?.invoke()?.let { tileViews.add(it) }
+        for ((id, builder) in tileBuilders) {
+            if (id !in knownOrder) builder?.invoke()?.let { tileViews.add(it) }
+        }
 
         tileViews.chunked(3).forEachIndexed { idx, chunk ->
             val row = LinearLayout(this).apply {
@@ -726,6 +710,8 @@ class SidebarOverlayService : Service() {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { if (tileViews.isNotEmpty() || oPrefs.showBrightnessSlider) topMargin = dp(6) }
         }
+        if (oPrefs.showVolume) actRow.addView(makeControlTile("Volume", { "" }, tileBg, tileActive,
+            { false }, { "" }) { toggleVolumePanel(prefs, effectiveSide, panelY) })
         actRow.addView(makeControlTile("All Apps", { "" }, tileBg, tileActive,
             { false }, { "" }) { showAllAppsDrawer() })
         actRow.addView(makeControlTile("Edit", { "" }, tileBg, tileActive,
@@ -748,7 +734,7 @@ class SidebarOverlayService : Service() {
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = panelGravity; x = dp(76); y = panelY.coerceIn(0, screenHeight - dp(200)) })
+        ).apply { gravity = panelGravity; x = dp(76); y = panelY.coerceIn(0, maxOf(0, screenHeight - dp(200))) })
 
         controlsPanelView = ctrl
 
@@ -901,7 +887,7 @@ class SidebarOverlayService : Service() {
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = panelGravity; x = dp(76); y = panelY.coerceIn(0, screenHeight - dp(300)) })
+        ).apply { gravity = panelGravity; x = dp(76); y = panelY.coerceIn(0, maxOf(0, screenHeight - dp(300))) })
 
         volumePanelView = ctrl
 
