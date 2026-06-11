@@ -512,7 +512,7 @@ class SidebarOverlayService : Service() {
         }
         toolsBtn.addView(TextView(this).apply {
             text = ""
-            textSize = 22f
+            textSize = 20f
             gravity = Gravity.CENTER
             setTextColor(iconColor)
             typeface = iconTypeface
@@ -664,11 +664,11 @@ class SidebarOverlayService : Service() {
         }
 
         if (oPrefs.showBrightnessSlider) {
-            val sliderRow = makeSliderRow(
+            val sliderRow = makeBrightnessSliderRow(
                 "", getBrightness(), 0, 255, labelColor, tileActive, tileBg
             ) { setBrightness(it) }
             ctrl.addView(sliderRow, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(44)
             ).apply { bottomMargin = dp(6) })
         }
 
@@ -1385,6 +1385,73 @@ class SidebarOverlayService : Service() {
         Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE,
             Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
         Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, value)
+    }
+
+    // ── Brightness slider (QS pill style) ────────────────────────────────────
+
+    private fun makeBrightnessSliderRow(
+        icon: String,
+        initial: Int, min: Int, max: Int,
+        iconColor: Int,
+        fillColor: Int,
+        bgColor: Int,
+        onChange: (Int) -> Unit
+    ): View {
+        val h = dp(44)
+        val r = h / 2f
+
+        val bgGd = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE; cornerRadius = r; setColor(bgColor)
+        }
+        val fillGd = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE; cornerRadius = r; setColor(fillColor)
+        }
+
+        val container = FrameLayout(this).apply {
+            background = bgGd
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, h)
+        }
+
+        val fillView = View(this).apply {
+            background = fillGd
+            layoutParams = FrameLayout.LayoutParams(h, FrameLayout.LayoutParams.MATCH_PARENT)
+        }
+        container.addView(fillView)
+
+        container.addView(TextView(this).apply {
+            text = icon
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(iconColor)
+            typeface = iconTypeface
+            layoutParams = FrameLayout.LayoutParams(h, FrameLayout.LayoutParams.MATCH_PARENT)
+        })
+
+        fun updateFill(progress: Int) {
+            val w = container.width.takeIf { it > 0 } ?: return
+            val fraction = (progress - min).toFloat() / (max - min)
+            val fillW = (fraction * w).toInt().coerceAtLeast(h)
+            (fillView.layoutParams as FrameLayout.LayoutParams).width = fillW
+            fillView.requestLayout()
+        }
+
+        container.post { updateFill(initial) }
+
+        container.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    val frac = (event.x / v.width).coerceIn(0f, 1f)
+                    val prog = (min + frac * (max - min)).toInt()
+                    updateFill(prog)
+                    onChange(prog)
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> true
+                else -> false
+            }
+        }
+
+        return container
     }
 
     // ── Slider row ────────────────────────────────────────────────────────────
