@@ -268,6 +268,15 @@ class SidebarOverlayService : Service() {
         return Color.HSVToColor(255, hsv)
     }
 
+    private val panelOutlineColor = Color.parseColor("#39FF14")
+
+    private fun makeOutlinedPanelBackground(panelBg: Int, cornerRadiusDp: Int): GradientDrawable =
+        GradientDrawable().apply {
+            setColor(panelBg)
+            cornerRadius = dp(cornerRadiusDp).toFloat()
+            setStroke(dp(2), panelOutlineColor)
+        }
+
     private fun overlayPrefs(): OverlayPrefs {
         val p = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
         return OverlayPrefs(
@@ -488,10 +497,7 @@ class SidebarOverlayService : Service() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(panelBg)
-                cornerRadius = dp(32).toFloat()
-            }
+            background = makeOutlinedPanelBackground(panelBg, 32)
             elevation = dp(8).toFloat()
             clipToOutline = true
             outlineProvider = ViewOutlineProvider.BACKGROUND
@@ -650,10 +656,7 @@ class SidebarOverlayService : Service() {
 
         val ctrl = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(panelBg)
-                cornerRadius = dp(22).toFloat()
-            }
+            background = makeOutlinedPanelBackground(panelBg, 22)
             elevation = dp(8).toFloat()
             clipToOutline = true
             outlineProvider = ViewOutlineProvider.BACKGROUND
@@ -776,10 +779,7 @@ class SidebarOverlayService : Service() {
 
         val ctrl = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(panelBg)
-                cornerRadius = dp(22).toFloat()
-            }
+            background = makeOutlinedPanelBackground(panelBg, 22)
             elevation = dp(8).toFloat()
             clipToOutline = true
             outlineProvider = ViewOutlineProvider.BACKGROUND
@@ -970,7 +970,7 @@ class SidebarOverlayService : Service() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply { setColor(panelBg); cornerRadius = dp(24).toFloat() }
+            background = makeOutlinedPanelBackground(panelBg, 24)
             elevation = dp(8).toFloat()
             clipToOutline = true
             outlineProvider = ViewOutlineProvider.BACKGROUND
