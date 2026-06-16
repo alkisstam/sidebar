@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.0.4] - 2026-06-16
+
+### Changed
+
+- Control tab redesigned: Quick Controls card with an Active Controls horizontal icon strip (drag to reorder) and an All Controls icon grid with checkmark badges (tap to enable/disable), replacing the switch-list layout
+
+### Added
+
+- Usage Access permission row in the Control tab (required for Recent apps), with grant flow and live status
+
 ## [2.0.3] - 2026-06-08
 
 ### Added
