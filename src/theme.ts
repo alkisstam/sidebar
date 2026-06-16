@@ -44,7 +44,31 @@ export function makeStyles(colors: AppColors) {
     scrollContent: { padding: 16, paddingBottom: 32 },
 
     section: { backgroundColor: colors.surfaceContainer, borderRadius: 16, overflow: "hidden" },
+    sectionTitle: {
+      fontSize: 13, fontWeight: "600", color: colors.primary,
+      marginHorizontal: 20, marginTop: 16, marginBottom: 4, letterSpacing: 0.3,
+    },
     separator: { height: StyleSheet.hairlineWidth, backgroundColor: colors.separator, marginLeft: 72 },
+
+    controlStrip: { paddingHorizontal: 12, paddingVertical: 12, gap: 16 },
+    controlCell: { alignItems: "center", width: 64 },
+    controlCellActive: { opacity: 0.8 },
+    controlIconCircle: {
+      width: 52, height: 52, borderRadius: 26,
+      backgroundColor: colors.primaryContainer,
+      alignItems: "center", justifyContent: "center",
+      position: "relative",
+    },
+    controlIconCircleOff: { backgroundColor: colors.surfaceContainerHigh },
+    controlCellLabel: {
+      fontSize: 11, color: colors.text, textAlign: "center",
+      marginTop: 6, lineHeight: 14,
+    },
+    controlGrid: {
+      flexDirection: "row", flexWrap: "wrap",
+      paddingHorizontal: 12, paddingVertical: 12, paddingTop: 4,
+    },
+    controlGridCell: { width: "25%", alignItems: "center", paddingVertical: 10 },
 
     row: {
       flexDirection: "row", alignItems: "center",

@@ -68,17 +68,25 @@ const DEFAULT_OVERLAY: OverlaySettings = {
 };
 
 const CONTROL_TILES = [
-  { id: 'torch',      label: 'Torch',            key: 'showTorch'         },
-  { id: 'rotate',     label: 'Auto-rotate',      key: 'showAutoRotate'    },
-  { id: 'brightness', label: 'Auto-brightness',  key: 'showAutoBrightness'},
-  { id: 'ringer',     label: 'Ringer mode',       key: 'showRingerMode'   },
-  { id: 'share',      label: 'Quick Share',       key: 'showQuickShare'   },
-  { id: 'power',      label: 'Power menu',        key: 'showPower'        },
-  { id: 'qr',         label: 'QR scanner',        key: 'showQr'           },
-  { id: 'dnd',        label: 'Do Not Disturb',    key: 'showDnd'          },
+  { id: 'torch',      label: 'Torch',            key: 'showTorch',          icon: 'flashlight-outline'    },
+  { id: 'rotate',     label: 'Auto-rotate',      key: 'showAutoRotate',     icon: 'sync-outline'          },
+  { id: 'brightness', label: 'Auto-brightness',  key: 'showAutoBrightness', icon: 'contrast-outline'      },
+  { id: 'ringer',     label: 'Ringer mode',       key: 'showRingerMode',    icon: 'volume-medium-outline' },
+  { id: 'share',      label: 'Quick Share',       key: 'showQuickShare',    icon: 'share-social-outline'  },
+  { id: 'power',      label: 'Power menu',        key: 'showPower',         icon: 'power-outline'         },
+  { id: 'qr',         label: 'QR scanner',        key: 'showQr',            icon: 'qr-code-outline'       },
+  { id: 'dnd',        label: 'Do Not Disturb',    key: 'showDnd',           icon: 'moon-outline'          },
 ] as const;
 
+const EXTRA_CONTROLS = [
+  { label: 'Brightness slider', key: 'showBrightnessSlider', icon: 'sunny-outline'  },
+  { label: 'Volume',            key: 'showVolume',           icon: 'options-outline' },
+] as const;
+
+const ALL_CONTROLS = [...CONTROL_TILES, ...EXTRA_CONTROLS];
+
 type TileKey = typeof CONTROL_TILES[number]['key'];
+type AllKey = typeof ALL_CONTROLS[number]['key'];
 
 export default function Index() {
   const { appTheme, themeChoice, setThemeChoice } = useAppTheme();
@@ -127,6 +135,7 @@ export default function Index() {
   const [serviceEnabled, setServiceEnabled] = useState(false);
   const [dndPerm, setDndPerm] = useState(true);
   const [writePerm, setWritePerm] = useState(true);
+  const [usagePerm, setUsagePerm] = useState(true);
 
   const [pill, setPill] = useState<PillSettings>(DEFAULT_PILL);
   const [overlay, setOverlay] = useState<OverlaySettings>(DEFAULT_OVERLAY);
@@ -179,8 +188,9 @@ export default function Index() {
       Sidebar.getOverlaySettings(),
       Sidebar.hasDndPermission(),
       Sidebar.hasWriteSettingsPermission(),
+      Sidebar.hasUsageAccessPermission(),
       Sidebar.getFavorites(),
-    ]).then(([perm, svc, pillSettings, overlaySettings, dnd, write, favs]) => {
+    ]).then(([perm, svc, pillSettings, overlaySettings, dnd, write, usage, favs]) => {
       setPermissionGranted(perm);
       setServiceEnabled(svc);
       setPill(pillSettings);
@@ -188,6 +198,7 @@ export default function Index() {
       setOverlay(overlaySettings);
       setDndPerm(dnd);
       setWritePerm(write);
+      setUsagePerm(usage);
       pendingFavsRef.current = favs;
     });
   }, []);
@@ -200,11 +211,13 @@ export default function Index() {
           Sidebar.hasOverlayPermission(),
           Sidebar.hasDndPermission(),
           Sidebar.hasWriteSettingsPermission(),
+          Sidebar.hasUsageAccessPermission(),
           Sidebar.getLaunchTab(),
-        ]).then(([perm, dnd, write, launchTab]) => {
+        ]).then(([perm, dnd, write, usage, launchTab]) => {
           setPermissionGranted(perm);
           setDndPerm(dnd);
           setWritePerm(write);
+          setUsagePerm(usage);
           if (launchTab) changeTab(launchTab as Tab);
         });
       }
@@ -647,9 +660,10 @@ export default function Index() {
         <View style={{ display: activeTab === "control" ? "flex" : "none", flex: 1 }}>
           <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
             <View style={s.section}>
+              <Text style={s.sectionTitle}>Quick Controls</Text>
               {/* Quick controls header — enable toggle + expand/collapse */}
               <Pressable style={s.row} onPress={toggleQuickControls}>
-                <Text style={[s.rowLabel, { flex: 1 }]}>Quick controls</Text>
+                <Text style={[s.rowLabel, { flex: 1 }]}>Enable Quick Controls</Text>
                 <View onStartShouldSetResponder={() => true}>
                   <Switch
                     value={overlay.quickControlsEnabled}
@@ -667,53 +681,59 @@ export default function Index() {
               {/* Animated accordion body */}
               <Animated.View style={{ overflow: 'hidden', maxHeight: expandAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 2000] }) }}>
                 <View style={s.separator} />
+                <Text style={s.sectionTitle}>Active Controls</Text>
                 <DraggableFlatList
-                  data={orderedTiles}
+                  horizontal
+                  data={orderedTiles.filter(t => overlay[t.key as TileKey])}
                   keyExtractor={item => item.id}
-                  scrollEnabled={false}
+                  scrollEnabled
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.controlStrip}
                   renderItem={({ item, drag, isActive }: RenderItemParams<typeof CONTROL_TILES[number]>) => (
                     <ScaleDecorator>
-                      <View style={[s.row, isActive && { opacity: 0.8 }]}>
-                        <Pressable onLongPress={drag} delayLongPress={150} hitSlop={8} style={{ paddingHorizontal: 10 }}>
-                          <Ionicons name="reorder-three-outline" size={20} color={colors.subtext} />
-                        </Pressable>
-                        <Text style={[s.rowLabel, { flex: 1 }]}>{item.label}</Text>
-                        <Switch
-                          value={overlay[item.key as TileKey]}
-                          onValueChange={v => setOverlay(p => ({ ...p, [item.key]: v }))}
-                          trackColor={{ true: colors.tint }}
-                        />
-                      </View>
-                      <View style={s.separator} />
+                      <Pressable onLongPress={drag} delayLongPress={150} style={[s.controlCell, isActive && s.controlCellActive]}>
+                        <View style={s.controlIconCircle}>
+                          <Ionicons name={item.icon as any} size={22} color={colors.onPrimaryContainer} />
+                        </View>
+                        <Text style={s.controlCellLabel} numberOfLines={1}>{item.label}</Text>
+                      </Pressable>
                     </ScaleDecorator>
                   )}
-                  onDragEnd={({ data }) =>
-                    setOverlay(p => ({ ...p, controlTilesOrder: data.map(t => t.id) }))
-                  }
+                  onDragEnd={({ data }) => {
+                    const disabledIds = orderedTiles.filter(t => !overlay[t.key as TileKey]).map(t => t.id);
+                    setOverlay(p => ({ ...p, controlTilesOrder: [...data.map(t => t.id), ...disabledIds] }));
+                  }}
                 />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Brightness slider</Text>
-                  <Switch
-                    value={overlay.showBrightnessSlider}
-                    onValueChange={v => setOverlay(p => ({ ...p, showBrightnessSlider: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
-                </View>
                 <View style={s.separator} />
-                <View style={s.row}>
-                  <Text style={[s.rowLabel, { flex: 1, paddingStart: 16 }]}>Volume</Text>
-                  <Switch
-                    value={overlay.showVolume}
-                    onValueChange={v => setOverlay(p => ({ ...p, showVolume: v }))}
-                    trackColor={{ true: colors.tint }}
-                  />
+                <Text style={s.sectionTitle}>All Controls</Text>
+                <View style={s.controlGrid}>
+                  {ALL_CONTROLS.map(item => {
+                    const enabled = !!overlay[item.key as AllKey];
+                    return (
+                      <Pressable
+                        key={item.key}
+                        style={s.controlGridCell}
+                        onPress={() => setOverlay(p => ({ ...p, [item.key]: !enabled }))}
+                      >
+                        <View style={[s.controlIconCircle, !enabled && s.controlIconCircleOff]}>
+                          <Ionicons name={item.icon as any} size={22} color={enabled ? colors.onPrimaryContainer : colors.subtext} />
+                          {enabled && (
+                            <View style={s.checkBadge}>
+                              <Ionicons name="checkmark" size={9} color="#fff" />
+                            </View>
+                          )}
+                        </View>
+                        <Text style={s.controlCellLabel} numberOfLines={1}>{item.label}</Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </Animated.View>
             </View>
             {(() => {
-              const granted = [permissionGranted, dndPerm, writePerm].filter(Boolean).length;
+              const granted = [permissionGranted, dndPerm, writePerm, usagePerm].filter(Boolean).length;
               return (
-                <Text style={s.permCount}>{granted} / 3 permissions granted</Text>
+                <Text style={s.permCount}>{granted} / 4 permissions granted</Text>
               );
             })()}
             <View style={s.section}>
@@ -751,6 +771,19 @@ export default function Index() {
                 {writePerm
                   ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                   : <Pressable style={s.grantBtn} onPress={Sidebar.requestWriteSettingsPermission}>
+                    <Text style={s.grantBtnText}>Grant</Text>
+                  </Pressable>
+                }
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>Usage Access</Text>
+                  <Text style={s.rowSub}>{usagePerm ? "Permission granted" : "Required for Recent apps"}</Text>
+                </View>
+                {usagePerm
+                  ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  : <Pressable style={s.grantBtn} onPress={Sidebar.requestUsageAccessPermission}>
                     <Text style={s.grantBtnText}>Grant</Text>
                   </Pressable>
                 }

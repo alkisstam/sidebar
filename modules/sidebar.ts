@@ -114,4 +114,10 @@ export default {
   requestWriteSettingsPermission(): Promise<void> {
     return SidebarModule.requestWriteSettingsPermission();
   },
+  hasUsageAccessPermission(): Promise<boolean> {
+    return SidebarModule.hasUsageAccessPermission();
+  },
+  requestUsageAccessPermission(): Promise<void> {
+    return SidebarModule.requestUsageAccessPermission();
+  },
 };

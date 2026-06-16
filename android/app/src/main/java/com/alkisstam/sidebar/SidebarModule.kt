@@ -1,5 +1,6 @@
 package com.alkisstam.sidebar
 
+import android.app.AppOpsManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -273,6 +274,25 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
     fun requestWriteSettingsPermission(promise: Promise) {
         val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
             Uri.parse("package:${reactContext.packageName}"))
+            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        reactContext.startActivity(intent)
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun hasUsageAccessPermission(promise: Promise) {
+        val appOps = reactContext.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), reactContext.packageName)
+        } else {
+            appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), reactContext.packageName)
+        }
+        promise.resolve(mode == AppOpsManager.MODE_ALLOWED)
+    }
+
+    @ReactMethod
+    fun requestUsageAccessPermission(promise: Promise) {
+        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
             .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
         reactContext.startActivity(intent)
         promise.resolve(null)
