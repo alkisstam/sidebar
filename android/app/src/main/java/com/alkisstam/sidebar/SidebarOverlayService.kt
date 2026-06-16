@@ -62,6 +62,7 @@ class SidebarOverlayService : Service() {
     // Keyed by package name; populated on service start so panel and drawer open instantly.
     private val appIconCache = ConcurrentHashMap<String, Pair<String, Drawable>>()
     @Volatile private var cachedAllApps: List<Triple<String, String, Drawable>>? = null
+    @Volatile private var cachedRecentApps: List<String> = emptyList()
 
     // Fullscreen detection — only active when auto-hide-fullscreen pref is on.
     // 2 s interval is plenty; tighter polling prevents deep-sleep unnecessarily.
@@ -215,6 +216,7 @@ class SidebarOverlayService : Service() {
         val showBrightnessSlider: Boolean,
         val showQuickShare: Boolean,
         val showRecentApps: Boolean,
+        val showKeyboardOnAllApps: Boolean,
         val showPower: Boolean,
         val showQr: Boolean,
         val showDnd: Boolean,
@@ -224,7 +226,7 @@ class SidebarOverlayService : Service() {
 
     private fun pillPrefs(): PillPrefs {
         val p = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
-        val themeChoice = p.getString(Prefs.THEME_CHOICE, "dark") ?: "dark"
+        val themeChoice = p.getString(Prefs.THEME_CHOICE, "system") ?: "system"
         val theme = if (themeChoice == "system") {
             val nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
             if (nightMode == Configuration.UI_MODE_NIGHT_YES) "dark" else "light"
@@ -232,7 +234,7 @@ class SidebarOverlayService : Service() {
             p.getString(Prefs.PILL_THEME, "dark") ?: "dark"
         }
         return PillPrefs(
-            p.getInt(Prefs.PILL_HEIGHT, 80), p.getInt(Prefs.PILL_WIDTH, 36),
+            p.getInt(Prefs.PILL_HEIGHT, 80), p.getInt(Prefs.PILL_WIDTH, 10),
             p.getFloat(Prefs.PILL_POSITION, 0.5f),
             p.getString(Prefs.PILL_SIDE, "right") ?: "right",
             p.getFloat(Prefs.PILL_OPACITY, 1.0f),
@@ -299,6 +301,7 @@ class SidebarOverlayService : Service() {
             p.getBoolean(Prefs.SHOW_BRIGHTNESS_SLIDER, false),
             p.getBoolean(Prefs.SHOW_QUICK_SHARE, false),
             p.getBoolean(Prefs.SHOW_RECENT_APPS, false),
+            p.getBoolean(Prefs.SHOW_KEYBOARD_ON_ALL_APPS, false),
             p.getBoolean(Prefs.SHOW_POWER, false),
             p.getBoolean(Prefs.SHOW_QR, false),
             p.getBoolean(Prefs.SHOW_DND, false),
@@ -467,7 +470,7 @@ class SidebarOverlayService : Service() {
         val screenHeight = resources.displayMetrics.heightPixels
         // Tools(56)+divider(1)+padding(12)+6 cells×68dp
         val maxPanelHeight = dp(477)
-        val recents = if (oPrefs.showRecentApps) getRecentApps(4) else emptyList()
+        val recents = if (oPrefs.showRecentApps) cachedRecentApps.take(4) else emptyList()
         val totalAppCount = recents.size + pkgs.size
         val appH = if (totalAppCount == 0) dp(60) else totalAppCount * dp(68)
         val panelHeight = (dp(57) + appH).coerceAtMost(maxPanelHeight).coerceAtMost(screenHeight)
@@ -903,6 +906,7 @@ class SidebarOverlayService : Service() {
     private fun hidePanel() {
         if (!shown) return
         shown = false
+        appLoadExecutor.submit { cachedRecentApps = getRecentApps(4) }
         controlsPanelView?.let { runCatching { wm.removeViewImmediate(it) } }
         controlsPanelView = null
         volumePanelView?.let { runCatching { wm.removeViewImmediate(it) } }
@@ -945,6 +949,7 @@ class SidebarOverlayService : Service() {
         hidePanel()
         vibrate()
         val p = pillPrefs()
+        val oPrefs = overlayPrefs()
         val light = p.theme == "light"
         val dm = resources.displayMetrics
         val drawerW = (dm.widthPixels * 0.8).toInt()
@@ -1019,6 +1024,7 @@ class SidebarOverlayService : Service() {
             setPadding(dp(16), dp(10), dp(16), dp(10))
             isSingleLine = true
             inputType = android.text.InputType.TYPE_CLASS_TEXT
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_GO
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { setMargins(dp(12), dp(8), dp(12), dp(8)) }
@@ -1048,19 +1054,34 @@ class SidebarOverlayService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.CENTER })
+        ).apply {
+            gravity = Gravity.CENTER
+            if (oPrefs.showKeyboardOnAllApps) {
+                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+            }
+        })
         allAppsView = root
 
         root.alpha = 0f; root.scaleX = 0.92f; root.scaleY = 0.92f
         root.animate().withLayer().alpha(1f).scaleX(1f).scaleY(1f)
             .setDuration(240).setInterpolator(OvershootInterpolator(1.0f)).start()
 
+        if (oPrefs.showKeyboardOnAllApps) {
+            searchBox.post {
+                searchBox.requestFocus()
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                imm.showSoftInput(searchBox, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+            }
+        }
+
         val pm = packageManager
         val appList = mutableListOf<Triple<String, String, Drawable>>()
+        var currentFiltered = listOf<Triple<String, String, Drawable>>()
 
         fun rebuildGrid(query: String) {
             val filtered = if (query.isEmpty()) appList
                            else appList.filter { it.second.lowercase().contains(query.lowercase()) }
+            currentFiltered = filtered
             grid.removeAllViews()
             if (filtered.isEmpty()) {
                 grid.addView(TextView(this).apply {
@@ -1084,7 +1105,8 @@ class SidebarOverlayService : Service() {
                     grid.addView(row)
                 }
                 val (pkg, name, icon) = app
-                row?.addView(makeAppCell(pkg, name, icon, labelColor, true) {
+                row?.addView(makeAppCell(pkg, name, icon, labelColor, true,
+                    isHighlighted = query.isNotEmpty() && i == 0) {
                     hideAllAppsDrawer()
                     doLaunch(pkg)
                 })
@@ -1102,6 +1124,16 @@ class SidebarOverlayService : Service() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) { rebuildGrid(s?.toString() ?: "") }
         })
+
+        searchBox.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO) {
+                currentFiltered.firstOrNull()?.let { (pkg, _, _) ->
+                    hideAllAppsDrawer()
+                    doLaunch(pkg)
+                }
+                true
+            } else false
+        }
 
         val snapshot = cachedAllApps
         if (snapshot != null) {
@@ -1517,6 +1549,7 @@ class SidebarOverlayService : Service() {
     private fun makeAppCell(
         pkg: String, name: String, icon: Drawable,
         labelColor: Int = Color.WHITE, showLabel: Boolean = true,
+        isHighlighted: Boolean = false,
         onClick: () -> Unit = { launch(pkg) }
     ): View {
         val cell = LinearLayout(this).apply {
@@ -1526,6 +1559,13 @@ class SidebarOverlayService : Service() {
             isClickable = true
             isFocusable = true
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            if (isHighlighted) {
+                background = GradientDrawable().apply {
+                    setColor(Color.TRANSPARENT)
+                    cornerRadius = dp(12).toFloat()
+                    setStroke(dp(2), panelOutlineColor)
+                }
+            }
             setOnClickListener { onClick() }
             setOnLongClickListener { showAppContextMenu(pkg, name, it); true }
             setOnTouchListener { _, event ->
@@ -1681,6 +1721,7 @@ class SidebarOverlayService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Prefetch failed", e)
         }
+        cachedRecentApps = getRecentApps(4)
     }
 
     private fun loadFavorites(): List<String> {
@@ -1704,12 +1745,11 @@ class SidebarOverlayService : Service() {
         val usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val end = System.currentTimeMillis()
         val start = end - 7 * 24 * 60 * 60 * 1000L
-        val pm = packageManager
         return usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end)
             .filter { it.packageName != packageName && it.lastTimeUsed > 0 }
             .sortedByDescending { it.lastTimeUsed }
             .map { it.packageName }
-            .filter { pkg -> try { pm.getApplicationInfo(pkg, 0); true } catch (e: Exception) { false } }
+            .filter { pkg -> appIconCache.containsKey(pkg) }
             .distinct()
             .take(count)
     }

@@ -63,6 +63,7 @@ const DEFAULT_OVERLAY: OverlaySettings = {
   showBrightnessSlider: true, showQuickShare: true,
   showPower: true, showQr: true, showDnd: true,
   showRecentApps: false,
+  showKeyboardOnAllApps: false,
   showVolume: true,
   controlTilesOrder: ['torch','rotate','brightness','ringer','share','power','qr','dnd'],
 };
@@ -196,6 +197,10 @@ export default function Index() {
       setPill(pillSettings);
       setThemeChoice(pillSettings.themeChoice ?? pillSettings.theme);
       setOverlay(overlaySettings);
+      if (overlaySettings.quickControlsEnabled) {
+        setQuickControlsExpanded(true);
+        expandAnim.setValue(1);
+      }
       setDndPerm(dnd);
       setWritePerm(write);
       setUsagePerm(usage);
@@ -571,7 +576,25 @@ export default function Index() {
                 </View>
                 <Switch
                   value={overlay.showRecentApps}
-                  onValueChange={v => setOverlay(p => ({ ...p, showRecentApps: v }))}
+                  onValueChange={v => {
+                    if (v && !usagePerm) {
+                      Sidebar.requestUsageAccessPermission();
+                      return;
+                    }
+                    setOverlay(p => ({ ...p, showRecentApps: v }));
+                  }}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>Show keyboard on All Apps</Text>
+                  <Text style={s.rowSub}>Auto-focus the search field and pop up the keyboard when All Apps opens</Text>
+                </View>
+                <Switch
+                  value={overlay.showKeyboardOnAllApps}
+                  onValueChange={v => setOverlay(p => ({ ...p, showKeyboardOnAllApps: v }))}
                   trackColor={{ true: colors.tint }}
                 />
               </View>

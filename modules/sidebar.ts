@@ -46,6 +46,7 @@ export interface OverlaySettings {
   showBrightnessSlider: boolean;
   showQuickShare: boolean;
   showRecentApps: boolean;
+  showKeyboardOnAllApps: boolean;
   showPower: boolean;
   showQr: boolean;
   showDnd: boolean;
