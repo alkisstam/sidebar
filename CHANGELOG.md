@@ -5,10 +5,20 @@
 ### Changed
 
 - Control tab redesigned: Quick Controls card with an Active Controls horizontal icon strip (drag to reorder) and an All Controls icon grid with checkmark badges (tap to enable/disable), replacing the switch-list layout
+- Recent apps for the panel are now cached and refreshed asynchronously instead of querying `UsageStatsManager` on the panel-open path, removing the open delay
+- Quick Controls card now auto-expands on load when enabled
+- Default handle width changed from 36 to 10; default theme changed from dark to System
+- Toggling "Recent apps" on without Usage Access granted now opens the Usage Access settings screen instead of silently enabling the setting
 
 ### Added
 
 - Usage Access permission row in the Control tab (required for Recent apps), with grant flow and live status
+- "Show keyboard on All Apps" toggle — auto-focuses the search field and shows the keyboard when the All Apps drawer opens
+- All Apps drawer highlights the first search result and launches it on Enter/Go
+
+### Fixed
+
+- Keyboard not appearing when "Show keyboard on All Apps" is enabled (missing `SOFT_INPUT_STATE_ALWAYS_VISIBLE` on the overlay window, plus a focus-before-attach timing issue)
 
 ## [2.0.3] - 2026-06-08
 
