@@ -4,18 +4,21 @@ An Android overlay sidebar for quick access to favorite apps. A pull-tab handle 
 
 ## Features
 
-- Pull-tab handle on the screen edge — left, right, or both sides simultaneously — with configurable vertical position, size (down to 2 dp), and opacity (down to fully transparent)
-- Pill gestures: swipe up, swipe down, and double tap each map to a configurable action — open panel, expand notifications, expand quick settings, or open all apps
-- Floating panel with a unified controls strip containing quick-control tiles (torch, auto-rotate, auto-brightness, ringer mode) alongside All Apps and Edit action tiles; the entire strip positions at the top or bottom of the panel
-- All Apps drawer: centered overlay with a 4-column alphabetical grid of all installed apps and a live search bar
-- Long-press any app icon to open a context menu with Open or Floating Window options; Floating Window launches the app in a resizable freeform window (works on stock Android with desktop/freeform mode enabled)
-- Drag-to-reorder favorites via long-press on the drag indicator in the open panel; tap any app to launch it
+- **Pull-tab handle** on the screen edge — left, right, or both sides simultaneously — with configurable vertical position, size (down to 2 dp), and opacity (down to fully transparent)
+- **Pill gestures**: swipe in, swipe up, swipe down, and double tap each map to a configurable action — open panel, expand notifications, expand quick settings, or open all apps
+- **Slim sidebar panel** (64 dp column): Tools button at top, circular app icons below; tap any app to launch it
+- **Tools panel**: opens beside the sidebar with quick-control tiles in a 3-column grid — Torch, Auto-rotate, Auto-brightness, Ringer, Quick Share, Power, QR scanner, Do Not Disturb; drag-to-reorder tiles from settings
+- **Brightness and volume sliders** in the tools panel; volume panel with independent Media, Ring, Notification, and Alarm sliders
+- **Recent apps**: top rows of the sidebar show the four most recently used apps (cached async for fast panel open); requires Usage Access permission
+- **All Apps drawer**: centered overlay with a 4-column alphabetical grid of all installed apps, live search bar, optional auto-keyboard with first-result highlight and Enter-to-launch
+- **Long-press context menu** on any app icon with Open option
+- **Drag-to-reorder favorites** via long-press on the drag indicator in the open panel
 - Persists across reboots via a foreground service and boot receiver
 - Auto-hides in fullscreen apps (configurable); battery-friendly polling that pauses when the screen is off
-- Material Design 3 config UI with four tabs: Handle, Behavior, Control, Apps; swipe left/right to switch tabs
-- Handle tab: side (left / right / both), theme (applied to entire app), panel color picker (8 presets + color wheel), position, height, width, opacity
-- Behavior tab: auto-hide in fullscreen, app labels, vibration feedback, swipe sensitivity, pill gesture mapping
-- Control tab: master and per-tile toggles for quick controls and action buttons; overlay, Do Not Disturb, and system-settings permission management
+- **Material You** config UI with dynamic wallpaper colors on Android 12+; four tabs (Handle, Behavior, Control, Apps) with swipe navigation
+- **Handle tab**: side (left / right / both), theme (dark / light / system), panel color picker (8 presets + color wheel), position, height, width, opacity
+- **Behavior tab**: auto-hide in fullscreen, app labels, vibration feedback, swipe sensitivity, pill gesture mapping, recent apps toggle, keyboard-on-All-Apps toggle
+- **Control tab**: redesigned icon grid with Active Controls strip (drag-to-reorder) and All Controls grid (tap to toggle); permission management for overlay, Do Not Disturb, system settings, and Usage Access
 
 ## Gallery
 
@@ -63,7 +66,7 @@ app/
 modules/
   sidebar.ts        React Native bridge to the native Android module
 android/
-  app/src/main/java/com/anonymous/sidebar/
+  app/src/main/java/com/alkisstam/sidebar/
     SidebarOverlayService.kt   Foreground service; floating panel and handle
     SidebarModule.kt           React Native native module
     BootReceiver.kt            Auto-start on device boot
