@@ -11,13 +11,14 @@ An Android overlay sidebar for quick access to favorite apps. A pull-tab handle 
 - **Brightness and volume sliders** in the tools panel; volume panel with independent Media, Ring, Notification, and Alarm sliders
 - **Recent apps**: top rows of the sidebar show the four most recently used apps (cached async for fast panel open); requires Usage Access permission
 - **All Apps drawer**: centered overlay with a 4-column alphabetical grid of all installed apps, live search bar, optional auto-keyboard with first-result highlight and Enter-to-launch
-- **Long-press context menu** on any app icon with Open option
+- **Freeform windows** (optional, via [Shizuku](https://shizuku.rikka.app/)): launch apps as floating windows with an overlay title bar (drag to move, maximize, close) and a resize handle; choose whether a tap opens floating or fullscreen. Device-wide freeform settings are restored when the last window closes
+- **Long-press context menu** on any app icon: Open, or Open in Fullscreen / Open Floating when freeform is enabled
 - **Drag-to-reorder favorites** via long-press on the drag indicator in the open panel
 - Persists across reboots via a foreground service and boot receiver
 - Auto-hides in fullscreen apps (configurable); battery-friendly polling that pauses when the screen is off
 - **Material You** config UI with dynamic wallpaper colors on Android 12+; four tabs (Handle, Behavior, Control, Apps) with swipe navigation
 - **Handle tab**: side (left / right / both), theme (dark / light / system), panel color picker (8 presets + color wheel), position, height, width, opacity
-- **Behavior tab**: auto-hide in fullscreen, app labels, vibration feedback, swipe sensitivity, pill gesture mapping, recent apps toggle, keyboard-on-All-Apps toggle
+- **Behavior tab**: auto-hide in fullscreen, app labels, freeform windows and tap behavior, vibration feedback, panel outline, swipe sensitivity, pill gesture mapping, recent apps toggle, keyboard-on-All-Apps toggle
 - **Control tab**: redesigned icon grid with Active Controls strip (drag-to-reorder) and All Controls grid (tap to toggle); permission management for overlay, Do Not Disturb, system settings, and Usage Access
 
 ## Gallery
@@ -44,6 +45,8 @@ Download the latest APK from the [Releases](https://github.com/alkisstam/sidebar
 
 4. Optionally grant **Do Not Disturb** and **Modify system settings** permissions (Control tab) to enable the ringer and brightness controls in the panel.
 
+5. Optionally install and start [Shizuku](https://shizuku.rikka.app/), then enable **Open apps in freeform windows** (Behavior tab) and allow access in the Shizuku prompt.
+
 ## Development
 
 Start the Metro bundler:
@@ -62,13 +65,16 @@ npx expo run:android --variant release
 app/
   _layout.tsx       Root stack navigator
   index.tsx         Main settings screen (4 tabs: Handle, Behavior, Control, Apps)
-  favorites.tsx     Legacy app picker (kept for reference)
 modules/
   sidebar.ts        React Native bridge to the native Android module
 android/
   app/src/main/java/com/alkisstam/sidebar/
     SidebarOverlayService.kt   Foreground service; floating panel and handle
     SidebarModule.kt           React Native native module
+    SidebarPrefs.kt            SharedPreferences keys shared by module and service
     BootReceiver.kt            Auto-start on device boot
 ```
 
+## License
+
+[MIT](LICENSE) © 2026 alkisstam
