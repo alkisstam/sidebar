@@ -255,7 +255,8 @@ class SidebarOverlayService : Service() {
         val showVolume: Boolean,
         val controlTilesOrder: List<String>,
         val freeformWindows: Boolean,
-        val panelOutline: Boolean
+        val panelOutline: Boolean,
+        val freeformOnTap: Boolean
     )
 
     private fun pillPrefs(): PillPrefs {
@@ -349,7 +350,8 @@ class SidebarOverlayService : Service() {
                 } catch (_: Exception) { default }
             },
             p.getBoolean(Prefs.FREEFORM_WINDOWS, false),
-            p.getBoolean(Prefs.PANEL_OUTLINE, true)
+            p.getBoolean(Prefs.PANEL_OUTLINE, true),
+            p.getBoolean(Prefs.FREEFORM_ON_TAP, true)
         )
     }
 
@@ -1643,7 +1645,7 @@ class SidebarOverlayService : Service() {
         doLaunch(pkg)
     }
 
-    private fun doLaunch(pkg: String) {
+    private fun doLaunch(pkg: String, floating: Boolean = overlayPrefs().let { it.freeformWindows && it.freeformOnTap }) {
         vibrate()
         val intent = packageManager.getLaunchIntentForPackage(pkg)
         if (intent == null) {
@@ -1664,7 +1666,7 @@ class SidebarOverlayService : Service() {
                 }
             }
         }
-        if (overlayPrefs().freeformWindows && tryShizukuFreeformLaunch(intent) {
+        if (floating && tryShizukuFreeformLaunch(intent) {
                 Handler(Looper.getMainLooper()).post { launchFullscreen() }
             }) return
         launchFullscreen()
@@ -2059,7 +2061,13 @@ class SidebarOverlayService : Service() {
             background = GradientDrawable().apply { setColor(Color.TRANSPARENT); cornerRadius = dp(12).toFloat() }
             setOnClickListener { hideContextMenu(); action() }
         }
-        menu.addView(item("Open") { doLaunch(pkg) })
+        val o = overlayPrefs()
+        val openLabel = when {
+            !o.freeformWindows -> "Open"
+            o.freeformOnTap -> "Open in Fullscreen"
+            else -> "Open Floating"
+        }
+        menu.addView(item(openLabel) { doLaunch(pkg, o.freeformWindows && !o.freeformOnTap) })
 
         val container = FrameLayout(this).apply {
             setOnClickListener { hideContextMenu() }

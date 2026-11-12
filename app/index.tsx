@@ -68,6 +68,7 @@ const DEFAULT_OVERLAY: OverlaySettings = {
   controlTilesOrder: ['torch','rotate','brightness','ringer','share','power','qr','dnd'],
   freeformWindows: false,
   panelOutline: true,
+  freeformOnTap: true,
 };
 
 const CONTROL_TILES = [
@@ -626,6 +627,22 @@ export default function Index() {
                   trackColor={{ true: colors.tint }}
                 />
               </View>
+              {overlay.freeformWindows && (
+                <>
+                  <View style={s.separator} />
+                  <View style={s.row}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.rowLabel}>Open in freeform on tap</Text>
+                      <Text style={s.rowSub}>Off: tap opens fullscreen, long-press to open floating</Text>
+                    </View>
+                    <Switch
+                      value={overlay.freeformOnTap}
+                      onValueChange={v => setOverlay(p => ({ ...p, freeformOnTap: v }))}
+                      trackColor={{ true: colors.tint }}
+                    />
+                  </View>
+                </>
+              )}
               <View style={s.separator} />
               <View style={s.row}>
                 <Text style={[s.rowLabel, { flex: 1 }]}>Vibration feedback</Text>

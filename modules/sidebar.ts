@@ -54,6 +54,7 @@ export interface OverlaySettings {
   controlTilesOrder: string[];
   freeformWindows: boolean;
   panelOutline: boolean;
+  freeformOnTap: boolean;
 }
 
 export default {

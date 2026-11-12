@@ -41,4 +41,5 @@ internal object Prefs {
     const val FREEFORM_WINDOWS   = "freeform_windows"
     const val FREEFORM_SAVED_SETTINGS = "freeform_saved_settings"
     const val PANEL_OUTLINE = "panel_outline"
+    const val FREEFORM_ON_TAP = "freeform_on_tap"
 }
