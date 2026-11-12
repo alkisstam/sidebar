@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.2.0] - 2026-11-12
+
+### Added
+
+- "Panel outline" toggle in the Behavior tab — turns off the green outline on the panel, controls, volume/brightness and All Apps panels
+- "Open in freeform on tap" toggle under the freeform option (shown only when freeform is on); when off, tapping opens fullscreen and the long-press menu offers "Open Floating" instead
+- Long-press menu shows "Open in Fullscreen" or "Open Floating" depending on the tap behavior
+
+### Fixed
+
+- Device-wide freeform settings and desktop mode are now restored if the app was killed or updated while a floating window was open
+- Settings are also restored when a freeform launch fails or the new window can't be found; window lookup now retries for up to 2 seconds
+- Freeform toggle stays off and explains why when Shizuku isn't running or permission isn't granted
+- Background floating windows are re-pinned once instead of every 2 seconds
+
 ## [2.1.0] - 2026-10-21
 
 ### Added
