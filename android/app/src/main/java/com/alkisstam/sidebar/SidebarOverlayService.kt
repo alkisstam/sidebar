@@ -30,6 +30,7 @@ import android.view.animation.OvershootInterpolator
 import android.widget.*
 import androidx.core.app.NotificationCompat
 import org.json.JSONArray
+import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import rikka.shizuku.Shizuku
@@ -95,10 +96,14 @@ class SidebarOverlayService : Service() {
     private val freeformResizes     = mutableMapOf<Int, View>()
     private val freeformResizeParams= mutableMapOf<Int, WindowManager.LayoutParams>()
     private val freeformBounds      = mutableMapOf<Int, Rect>()
-    private val freeformPkgs        = mutableMapOf<Int, String>()
     private val freeformComponents  = mutableMapOf<Int, String>()
     private val freeformRootTasks   = mutableMapOf<Int, Int>()
-    @Volatile private var savedFreeformSettings: Map<String, String>? = null
+    // Restores flags left on if the process died while a freeform window was open.
+    private val restoreOnShizukuBinder = Shizuku.OnBinderReceivedListener {
+        if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+            Handler(Looper.getMainLooper()).post { restoreIfNoFreeformWindows() }
+        }
+    }
     private val chromePollHandler   = Handler(Looper.getMainLooper())
     private val chromePollRunnable  = object : Runnable {
         override fun run() {
@@ -141,6 +146,9 @@ class SidebarOverlayService : Service() {
             startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
             startForeground(1, notification)
+        }
+        if (getSharedPreferences(Prefs.FILE, MODE_PRIVATE).contains(Prefs.FREEFORM_SAVED_SETTINGS)) {
+            Shizuku.addBinderReceivedListenerSticky(restoreOnShizukuBinder)
         }
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
@@ -192,6 +200,7 @@ class SidebarOverlayService : Service() {
             freeformTitles.keys.toList().forEach { removeFreeformChrome(it) }
         }
         chromePollHandler.removeCallbacks(chromePollRunnable)
+        Shizuku.removeBinderReceivedListener(restoreOnShizukuBinder)
     }
 
     private fun refreshHandle() {
@@ -1668,7 +1677,10 @@ class SidebarOverlayService : Service() {
     private fun enableFreeformSettings() {
         val keys = listOf("enable_freeform_support", "force_resizable_activities")
         val current = keys.associateWith { readGlobalSetting(it) }
-        if (savedFreeformSettings == null) savedFreeformSettings = current
+        val prefs = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
+        if (!prefs.contains(Prefs.FREEFORM_SAVED_SETTINGS)) {
+            prefs.edit().putString(Prefs.FREEFORM_SAVED_SETTINGS, JSONObject(current).toString()).commit()
+        }
         for ((key, value) in current) {
             if (value != "1") Shizuku.newProcess(arrayOf("settings", "put", "global", key, "1"), null, null).waitFor()
         }
@@ -1677,14 +1689,25 @@ class SidebarOverlayService : Service() {
     // Puts the device-wide freeform flags back to what they were before we touched them.
     @Synchronized
     private fun restoreFreeformSettings() {
-        val saved = savedFreeformSettings ?: return
-        savedFreeformSettings = null
-        for ((key, value) in saved) {
-            if (value == "1") continue
-            val cmd = if (value == "null") arrayOf("settings", "delete", "global", key)
-                      else arrayOf("settings", "put", "global", key, value)
-            runCatching { Shizuku.newProcess(cmd, null, null).waitFor() }
+        val prefs = getSharedPreferences(Prefs.FILE, MODE_PRIVATE)
+        val saved = prefs.getString(Prefs.FREEFORM_SAVED_SETTINGS, null) ?: return
+        runCatching { Shizuku.newProcess(arrayOf("wm", "shell", "desktopmode", "active", "0"), null, null).waitFor() }
+        runCatching {
+            val obj = JSONObject(saved)
+            for (key in obj.keys()) {
+                val value = obj.getString(key)
+                if (value == "1") continue
+                val cmd = if (value == "null") arrayOf("settings", "delete", "global", key)
+                          else arrayOf("settings", "put", "global", key, value)
+                runCatching { Shizuku.newProcess(cmd, null, null).waitFor() }
+            }
         }
+        prefs.edit().remove(Prefs.FREEFORM_SAVED_SETTINGS).commit()
+    }
+
+    // Main thread only: freeformTitles is not thread-safe.
+    private fun restoreIfNoFreeformWindows() {
+        if (freeformTitles.isEmpty()) Thread { restoreFreeformSettings() }.start()
     }
 
     private fun tryShizukuFreeformLaunch(intent: Intent, onFailed: () -> Unit): Boolean {
@@ -1715,10 +1738,15 @@ class SidebarOverlayService : Service() {
                     val err = proc.errorStream.bufferedReader().readText()
                     Log.d(TAG, "Shizuku: am start exit=$exit err='$err'")
                     if (exit != 0) {
+                        Handler(Looper.getMainLooper()).post { restoreIfNoFreeformWindows() }
                         onFailed()
                     } else {
-                        Thread.sleep(900)
-                        val taskInfo = findFreeformTask(pkg)
+                        var taskInfo: Triple<Int, Int, Rect>? = null
+                        for (attempt in 0 until 4) {
+                            Thread.sleep(500)
+                            taskInfo = findFreeformTask(pkg)
+                            if (taskInfo != null) break
+                        }
                         Log.d(TAG, "Shizuku: freeform task for $pkg = $taskInfo")
                         if (taskInfo != null) {
                             val (taskId, rootTaskId, bounds) = taskInfo
@@ -1733,10 +1761,13 @@ class SidebarOverlayService : Service() {
                                 freeformRootTasks[taskId] = rootTaskId
                                 attachFreeformChrome(taskId, pkg, bounds)
                             }
+                        } else {
+                            Handler(Looper.getMainLooper()).post { restoreIfNoFreeformWindows() }
                         }
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Shizuku freeform process failed: ${e.message}")
+                    Handler(Looper.getMainLooper()).post { restoreIfNoFreeformWindows() }
                     onFailed()
                 }
             }.start()
@@ -1923,7 +1954,6 @@ class SidebarOverlayService : Service() {
         freeformResizes[taskId]      = rh
         freeformResizeParams[taskId] = rp
         freeformBounds[taskId]       = bounds
-        freeformPkgs[taskId]         = pkg
         if (freeformTitles.size == 1) {
             chromePollHandler.postDelayed(chromePollRunnable, 2000)
             // Enable desktop mode globally as a fallback; keeps freeform tasks alive
@@ -1938,15 +1968,11 @@ class SidebarOverlayService : Service() {
         freeformTitleParams.remove(taskId)
         freeformResizeParams.remove(taskId)
         freeformBounds.remove(taskId)
-        freeformPkgs.remove(taskId)
         freeformComponents.remove(taskId)
         freeformRootTasks.remove(taskId)
         if (freeformTitles.isEmpty()) {
             chromePollHandler.removeCallbacks(chromePollRunnable)
-            Thread {
-                runCatching { Shizuku.newProcess(arrayOf("wm", "shell", "desktopmode", "active", "0"), null, null).waitFor() }
-                restoreFreeformSettings()
-            }.start()
+            Thread { restoreFreeformSettings() }.start()
         }
     }
 
@@ -2169,6 +2195,5 @@ class SidebarOverlayService : Service() {
 
     companion object {
         private const val TAG = "SidebarOverlayService"
-        private const val SHIZUKU_PERM_CODE = 1001
     }
 }

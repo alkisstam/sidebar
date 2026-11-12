@@ -610,7 +610,15 @@ export default function Index() {
                   onValueChange={async v => {
                     if (v) {
                       const status = await Sidebar.hasShizukuPermission();
-                      if (status !== 'granted') await Sidebar.requestShizukuPermission();
+                      if (status === 'not_running') {
+                        Alert.alert('Shizuku not running', 'Start Shizuku, then turn this on again.');
+                        return;
+                      }
+                      if (status !== 'granted') {
+                        await Sidebar.requestShizukuPermission();
+                        Alert.alert('Shizuku permission needed', 'Allow access in the Shizuku prompt, then turn this on again.');
+                        return;
+                      }
                     }
                     setOverlay(p => ({ ...p, freeformWindows: v }));
                   }}

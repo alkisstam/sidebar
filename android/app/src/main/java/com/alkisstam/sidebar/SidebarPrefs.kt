@@ -39,4 +39,5 @@ internal object Prefs {
     const val SHOW_VOLUME         = "show_volume"
     const val CONTROL_TILES_ORDER = "control_tiles_order"
     const val FREEFORM_WINDOWS   = "freeform_windows"
+    const val FREEFORM_SAVED_SETTINGS = "freeform_saved_settings"
 }
