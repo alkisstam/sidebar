@@ -47,3 +47,6 @@ app-example
 /android/build/
 /android/app/build/
 /android/.kotlin/
+
+# IDE caches
+.idea/caches/
