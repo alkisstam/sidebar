@@ -254,7 +254,8 @@ class SidebarOverlayService : Service() {
         val showDnd: Boolean,
         val showVolume: Boolean,
         val controlTilesOrder: List<String>,
-        val freeformWindows: Boolean
+        val freeformWindows: Boolean,
+        val panelOutline: Boolean
     )
 
     private fun pillPrefs(): PillPrefs {
@@ -309,7 +310,7 @@ class SidebarOverlayService : Service() {
         GradientDrawable().apply {
             setColor(panelBg)
             cornerRadius = dp(cornerRadiusDp).toFloat()
-            setStroke(dp(2), panelOutlineColor)
+            if (overlayPrefs().panelOutline) setStroke(dp(2), panelOutlineColor)
         }
 
     private fun overlayPrefs(): OverlayPrefs {
@@ -347,7 +348,8 @@ class SidebarOverlayService : Service() {
                     (0 until arr.length()).map { arr.getString(it) }
                 } catch (_: Exception) { default }
             },
-            p.getBoolean(Prefs.FREEFORM_WINDOWS, false)
+            p.getBoolean(Prefs.FREEFORM_WINDOWS, false),
+            p.getBoolean(Prefs.PANEL_OUTLINE, true)
         )
     }
 

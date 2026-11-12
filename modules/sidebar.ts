@@ -53,6 +53,7 @@ export interface OverlaySettings {
   showVolume: boolean;
   controlTilesOrder: string[];
   freeformWindows: boolean;
+  panelOutline: boolean;
 }
 
 export default {

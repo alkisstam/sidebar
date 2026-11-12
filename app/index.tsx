@@ -67,6 +67,7 @@ const DEFAULT_OVERLAY: OverlaySettings = {
   showVolume: true,
   controlTilesOrder: ['torch','rotate','brightness','ringer','share','power','qr','dnd'],
   freeformWindows: false,
+  panelOutline: true,
 };
 
 const CONTROL_TILES = [
@@ -631,6 +632,15 @@ export default function Index() {
                 <Switch
                   value={overlay.vibration}
                   onValueChange={v => setOverlay(p => ({ ...p, vibration: v }))}
+                  trackColor={{ true: colors.tint }}
+                />
+              </View>
+              <View style={s.separator} />
+              <View style={s.row}>
+                <Text style={[s.rowLabel, { flex: 1 }]}>Panel outline</Text>
+                <Switch
+                  value={overlay.panelOutline}
+                  onValueChange={v => setOverlay(p => ({ ...p, panelOutline: v }))}
                   trackColor={{ true: colors.tint }}
                 />
               </View>

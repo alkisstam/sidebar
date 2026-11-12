@@ -202,6 +202,7 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         map.putString("controlTilesOrder", prefs.getString(Prefs.CONTROL_TILES_ORDER,
             "[\"torch\",\"rotate\",\"brightness\",\"ringer\",\"share\",\"power\",\"qr\",\"dnd\"]"))
         map.putBoolean("freeformWindows", prefs.getBoolean(Prefs.FREEFORM_WINDOWS, false))
+        map.putBoolean("panelOutline", prefs.getBoolean(Prefs.PANEL_OUTLINE, true))
         promise.resolve(map)
     }
 
@@ -234,6 +235,7 @@ class SidebarModule(private val reactContext: ReactApplicationContext) :
         if (settings.hasKey("showVolume")) prefs.putBoolean(Prefs.SHOW_VOLUME, settings.getBoolean("showVolume"))
         if (settings.hasKey("controlTilesOrder")) prefs.putString(Prefs.CONTROL_TILES_ORDER, settings.getString("controlTilesOrder"))
         if (settings.hasKey("freeformWindows")) prefs.putBoolean(Prefs.FREEFORM_WINDOWS, settings.getBoolean("freeformWindows"))
+        if (settings.hasKey("panelOutline")) prefs.putBoolean(Prefs.PANEL_OUTLINE, settings.getBoolean("panelOutline"))
         prefs.apply()
         val serviceEnabled = reactContext.getSharedPreferences(Prefs.FILE, Context.MODE_PRIVATE)
             .getBoolean(Prefs.SERVICE_ENABLED, false)
