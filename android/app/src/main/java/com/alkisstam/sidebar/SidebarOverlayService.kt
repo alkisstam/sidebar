@@ -98,6 +98,8 @@ class SidebarOverlayService : Service() {
     private val freeformBounds      = mutableMapOf<Int, Rect>()
     private val freeformComponents  = mutableMapOf<Int, String>()
     private val freeformRootTasks   = mutableMapOf<Int, Int>()
+    // Tasks already re-pinned after going behind; touched only from poll threads.
+    private val freeformBehindTasks = ConcurrentHashMap.newKeySet<Int>()
     // Restores flags left on if the process died while a freeform window was open.
     private val restoreOnShizukuBinder = Shizuku.OnBinderReceivedListener {
         if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
@@ -1989,8 +1991,11 @@ class SidebarOverlayService : Service() {
                 val behind = mutableListOf<Int>()
                 for (id in ids) {
                     val line = output.lines().firstOrNull { it.contains("taskId=$id ") || it.endsWith("taskId=$id") }
-                    if (line == null) gone.add(id) else if (line.contains("visible=false")) behind.add(id)
+                    if (line == null) gone.add(id)
+                    else if (!line.contains("visible=false")) freeformBehindTasks.remove(id)
+                    else if (freeformBehindTasks.add(id)) behind.add(id)
                 }
+                freeformBehindTasks.removeAll(gone.toSet())
                 if (gone.isNotEmpty()) Handler(Looper.getMainLooper()).post { gone.forEach { removeFreeformChrome(it) } }
                 for (id in behind) {
                     val b = bounds[id] ?: continue
